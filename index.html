@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔥 VIP Content Vault</title>
+    <!-- Telegram WebApp SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <!-- Adsgram Ad SDK -->
+    <script src="https://sad.adsgram.ai/js/sad.min.js"></script>
+    <style>
+        body { background: #121212; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, sans-serif; padding: 15px; margin: 0; }
+        h2 { text-align: center; margin-bottom: 20px; font-size: 20px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+        .card { background: #1e1e1e; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; }
+        .card img { width: 100%; height: 110px; object-fit: cover; }
+        .card-body { padding: 8px; display: flex; flex-direction: column; justify-content: space-between; flex: 1; }
+        .card-title { font-size: 12px; font-weight: bold; height: 32px; overflow: hidden; line-height: 1.3; }
+        .btn { width: 100%; padding: 8px 0; border: none; border-radius: 5px; background: #0088cc; color: white; font-weight: bold; cursor: pointer; margin-top: 8px; font-size: 12px; }
+    </style>
+</head>
+<body>
+
+    <h2>🔥 VIP Content Vault</h2>
+    <div class="grid" id="catalog">Loading media catalog...</div>
+
+    <script>
+        // REPLACE THIS WITH YOUR RENDER URL IN STEP 6
+        const API_URL = "https://your-render-service.onrender.com"; 
+
+        async function loadCatalog() {
+            try {
+                const res = await fetch(`${API_URL}/api/videos`);
+                const videos = await res.json();
+                
+                const container = document.getElementById('catalog');
+                container.innerHTML = videos.map(v => `
+                    <div class="card">
+                        <img src="${v.thumbnail}" alt="thumb" />
+                        <div class="card-body">
+                            <div class="card-title">${v.title}</div>
+                            <button class="btn" onclick="unlockContent('${v.targetUrl}')">
+                                ▶ Watch Ad to Unlock
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (err) {
+                document.getElementById('catalog').innerText = "Unable to connect to backend server.";
+            }
+        }
+
+        function unlockContent(destination) {
+            if (window.Telegram && window.Telegram.WebApp) {
+                window.Telegram.WebApp.openLink(destination);
+            } else {
+                window.location.href = destination;
+            }
+        }
+
+        loadCatalog();
+    </script>
+</body>
+</html>
