@@ -3,30 +3,176 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🔥 VIP Content Vault</title>
-    <!-- Telegram WebApp SDK -->
+    <title>VIP Content Vault</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <!-- Adsgram Ad SDK -->
     <script src="https://sad.adsgram.ai/js/sad.min.js"></script>
     <style>
-        body { background: #121212; color: #ffffff; font-family: -apple-system, BlinkMacSystemFont, sans-serif; padding: 15px; margin: 0; }
-        h2 { text-align: center; margin-bottom: 20px; font-size: 20px; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
-        .card { background: #1e1e1e; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; }
-        .card img { width: 100%; height: 110px; object-fit: cover; }
-        .card-body { padding: 8px; display: flex; flex-direction: column; justify-content: space-between; flex: 1; }
-        .card-title { font-size: 12px; font-weight: bold; height: 32px; overflow: hidden; line-height: 1.3; }
-        .btn { width: 100%; padding: 8px 0; border: none; border-radius: 5px; background: #0088cc; color: white; font-weight: bold; cursor: pointer; margin-top: 8px; font-size: 12px; }
+        :root {
+            --bg-dark: #0d0e12;
+            --card-bg: #16181f;
+            --silver-border: linear-gradient(135deg, #e0e0e0, #8a8a8a, #ffffff, #4a4a4a);
+            --gold-glow: #ffe57f;
+            --gold-text: #ffd700;
+        }
+
+        body { 
+            background-color: var(--bg-dark); 
+            color: #e2e8f0; 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            padding: 10px; 
+            margin: 0; 
+            box-sizing: border-box;
+        }
+
+        /* Header Title */
+        .header {
+            text-align: center;
+            margin: 10px 0 15px 0;
+        }
+        .header h1 {
+            font-size: 20px;
+            font-weight: 800;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            background: linear-gradient(180deg, #ffffff 0%, #a1a1a1 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin: 0;
+            text-shadow: 0 0 12px rgba(255, 255, 255, 0.15);
+        }
+
+        /* Premium "No Ads" Banner at the Top */
+        .vip-banner {
+            background: linear-gradient(135deg, #1f1c2c, #928dab);
+            border: 1px solid #d4af37;
+            border-radius: 10px;
+            padding: 12px;
+            text-align: center;
+            margin-bottom: 16px;
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.25);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .vip-info {
+            text-align: left;
+        }
+        .vip-info .title {
+            font-size: 13px;
+            font-weight: bold;
+            color: #ffffff;
+            margin-bottom: 2px;
+        }
+        .vip-info .sub {
+            font-size: 10px;
+            color: #cbd5e1;
+        }
+        .vip-btn {
+            background: linear-gradient(135deg, #ffd700, #ffaa00);
+            color: #000000;
+            font-weight: 800;
+            font-size: 11px;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .vip-btn:active {
+            transform: scale(0.96);
+        }
+
+        /* 3-Column Grid Layout */
+        .grid { 
+            display: grid; 
+            grid-template-columns: repeat(3, 1fr); 
+            gap: 8px; 
+        }
+
+        /* Premium Silver-Border Card */
+        .card { 
+            background: var(--card-bg); 
+            border-radius: 8px; 
+            overflow: hidden; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: space-between;
+            position: relative;
+            border: 1px solid #2d3139;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.6);
+        }
+
+        .card img { 
+            width: 100%; 
+            height: 95px; 
+            object-fit: cover; 
+            background: #1a1c23;
+        }
+
+        .card-body { 
+            padding: 6px; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: space-between; 
+            flex: 1; 
+        }
+
+        .card-title { 
+            font-size: 10px; 
+            font-weight: 600; 
+            line-height: 1.25; 
+            height: 26px; 
+            overflow: hidden; 
+            margin-bottom: 6px;
+            color: #d1d5db;
+        }
+
+        /* Golden Glow Button */
+        .unlock-btn { 
+            width: 100%; 
+            padding: 7px 0; 
+            border: 1px solid rgba(255, 215, 0, 0.4); 
+            border-radius: 5px; 
+            background: linear-gradient(180deg, #1f1f1f 0%, #0a0a0a 100%); 
+            color: var(--gold-text); 
+            font-weight: 700; 
+            cursor: pointer; 
+            font-size: 9px; 
+            letter-spacing: 0.3px;
+            text-transform: uppercase;
+            text-shadow: 0 0 6px rgba(255, 215, 0, 0.8), 0 0 12px rgba(255, 215, 0, 0.4);
+            box-shadow: 0 0 8px rgba(255, 215, 0, 0.2);
+            transition: all 0.2s ease;
+        }
+
+        .unlock-btn:active { 
+            transform: scale(0.95);
+            box-shadow: 0 0 12px rgba(255, 215, 0, 0.5);
+        }
     </style>
 </head>
 <body>
 
-    <h2>🔥 VIP Content Vault</h2>
-    <div class="grid" id="catalog">Loading media catalog...</div>
+    <div class="header">
+        <h1>✨ VIP CONTENT VAULT</h1>
+    </div>
+
+    <!-- Top No-Ads Subscription Banner -->
+    <div class="vip-banner">
+        <div class="vip-info">
+            <div class="title">👑 NO ADS PASS</div>
+            <div class="sub">Unlimited instant access for 3 Months</div>
+        </div>
+        <button class="vip-btn" onclick="buyVipPass()">
+            ₹399 / 3 Mo
+        </button>
+    </div>
+
+    <div class="grid" id="catalog">Loading catalog...</div>
 
     <script>
-        // REPLACE THIS WITH YOUR RENDER URL IN STEP 6
-        const API_URL = "https://media-vault-backend-r56c.onrender.com"; 
+        const API_URL = "https://media-vault-backend.onrender.com"; 
 
         async function loadCatalog() {
             try {
@@ -34,13 +180,18 @@
                 const videos = await res.json();
                 
                 const container = document.getElementById('catalog');
+                if (!videos || videos.length === 0) {
+                    container.innerText = "No media available at the moment.";
+                    return;
+                }
+
                 container.innerHTML = videos.map(v => `
                     <div class="card">
-                        <img src="${v.thumbnail}" alt="thumb" />
+                        <img src="${v.thumbnail}" alt="thumb" onerror="this.src='https://via.placeholder.com/300x200?text=Media'" />
                         <div class="card-body">
                             <div class="card-title">${v.title}</div>
-                            <button class="btn" onclick="unlockContent('${v.targetUrl}')">
-                                ▶ Watch Ad to Unlock
+                            <button class="unlock-btn" onclick="unlockContent('${v.targetUrl}')">
+                                ▶ UNLOCK
                             </button>
                         </div>
                     </div>
@@ -56,6 +207,11 @@
             } else {
                 window.location.href = destination;
             }
+        }
+
+        function buyVipPass() {
+            alert("Redirecting to VIP Pass Payment Gateway...");
+            // You can replace this alert with your payment link or Telegram payment invoice URL
         }
 
         loadCatalog();
