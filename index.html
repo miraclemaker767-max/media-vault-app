@@ -3,6 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    
     <title>VIP Content Vault</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://sad.adsgram.ai/js/sad.min.js"></script>
@@ -18,33 +22,18 @@
             background-color: var(--bg-dark); 
             color: #e2e8f0; 
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
-            padding: 12px; 
+            padding: 40px 12px 12px 12px; 
             margin: 0; 
             box-sizing: border-box;
         }
 
-        /* Top Bar: Title + Pill Button */
-        .top-bar {
+        /* Line 1: Top Right VIP Pill */
+        .line-1 {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 12px;
+            justify-content: flex-end;
+            margin-bottom: 8px;
         }
 
-        /* Metallic Silver Header Title (including stars) */
-        .header-title {
-            font-size: 15px;
-            font-weight: 900;
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
-            background: var(--silver-gradient);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin: 0;
-            filter: drop-shadow(0 2px 4px rgba(255, 255, 255, 0.15));
-        }
-
-        /* Top Right VIP Pill Button (Copied exactly) */
         .vip-pill-btn {
             background: #111009;
             border: 1px solid var(--gold-accent);
@@ -64,68 +53,25 @@
             transform: scale(0.95);
         }
 
-        /* Full Zero Ads Experience Card (Copied exactly from reference) */
-        .zero-ads-card {
-            background: #111218;
-            border: 1px solid rgba(234, 179, 8, 0.4);
-            border-radius: 12px;
-            padding: 10px 12px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
+        /* Line 2: Centered Silver Heading */
+        .line-2 {
+            text-align: center;
             margin-bottom: 16px;
-            cursor: pointer;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-            transition: border-color 0.2s, transform 0.2s;
-        }
-        .zero-ads-card:active {
-            transform: scale(0.98);
-            border-color: var(--gold-accent);
         }
 
-        .zero-ads-left {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        /* Golden Lightning Icon Box */
-        .icon-box {
-            background: rgba(234, 179, 8, 0.15);
-            border: 1px solid rgba(234, 179, 8, 0.3);
-            border-radius: 8px;
-            width: 34px;
-            height: 34px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--gold-accent);
+        .header-title {
             font-size: 16px;
-            font-weight: bold;
+            font-weight: 900;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            background: var(--silver-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin: 0;
+            filter: drop-shadow(0 2px 4px rgba(255, 255, 255, 0.15));
         }
 
-        .zero-ads-text {
-            display: flex;
-            flex-direction: column;
-        }
-        .zero-ads-title {
-            font-size: 12px;
-            font-weight: 800;
-            color: var(--gold-accent);
-        }
-        .zero-ads-sub {
-            font-size: 10px;
-            color: #94a3b8;
-            margin-top: 1px;
-        }
-
-        .zero-ads-arrow {
-            color: var(--gold-accent);
-            font-size: 14px;
-            font-weight: bold;
-        }
-
-        /* 3-Column Grid */
+        /* 3-Column Grid Layout */
         .grid { 
             display: grid; 
             grid-template-columns: repeat(3, 1fr); 
@@ -168,7 +114,6 @@
             color: #d1d5db;
         }
 
-        /* Glowing Gold Unlock Button */
         .unlock-btn { 
             width: 100%; 
             padding: 6px 0; 
@@ -191,93 +136,143 @@
             box-shadow: 0 0 12px rgba(234, 179, 8, 0.5);
         }
 
-        .status-msg {
-            text-align: center;
+        /* Row 3 Banner: Spans Across 3 Columns */
+        .zero-ads-row-banner {
             grid-column: span 3;
-            padding: 30px 0;
-            color: #a0aec0;
+            background: #111218;
+            border: 1px solid rgba(234, 179, 8, 0.4);
+            border-radius: 12px;
+            padding: 10px 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin: 6px 0;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            transition: border-color 0.2s, transform 0.2s;
+        }
+
+        .zero-ads-row-banner:active {
+            transform: scale(0.98);
+            border-color: var(--gold-accent);
+        }
+
+        .zero-ads-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .icon-box {
+            background: rgba(234, 179, 8, 0.15);
+            border: 1px solid rgba(234, 179, 8, 0.3);
+            border-radius: 8px;
+            width: 34px;
+            height: 34px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--gold-accent);
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .zero-ads-text {
+            display: flex;
+            flex-direction: column;
+        }
+        .zero-ads-title {
             font-size: 12px;
+            font-weight: 800;
+            color: var(--gold-accent);
+        }
+        .zero-ads-sub {
+            font-size: 10px;
+            color: #94a3b8;
+            margin-top: 1px;
+        }
+
+        .zero-ads-arrow {
+            color: var(--gold-accent);
+            font-size: 14px;
+            font-weight: bold;
         }
     </style>
 </head>
 <body>
 
-    <!-- Top Header -->
-    <div class="top-bar">
-        <h1 class="header-title">✨ VIP CONTENT VAULT</h1>
+    <!-- Line 1: Top Right VIP Pill -->
+    <div class="line-1">
         <button class="vip-pill-btn" onclick="buyVipPass()">
             👑 Get VIP (0 Ads)
         </button>
     </div>
 
-    <!-- Zero Ads Experience Card (Exact style from reference player) -->
-    <div class="zero-ads-card" onclick="buyVipPass()">
-        <div class="zero-ads-left">
-            <div class="icon-box">⚡</div>
-            <div class="zero-ads-text">
-                <span class="zero-ads-title">Zero Ads Experience</span>
-                <span class="zero-ads-sub">Bypass all ads & stream instantly for 3 Mo ₹399</span>
-            </div>
-        </div>
-        <div class="zero-ads-arrow">›</div>
+    <!-- Line 2: Centered Silver Heading -->
+    <div class="line-2">
+        <h1 class="header-title">✨ VIP CONTENT VAULT</h1>
     </div>
 
-    <!-- 3 Column Catalog Grid -->
-    <div class="grid" id="catalog">
-        <div class="status-msg">⚡ Loading VIP Catalog...</div>
-    </div>
+    <!-- Catalog Grid -->
+    <div class="grid" id="catalog"></div>
 
     <script>
-        const API_URL = "https://media-vault-backend.onrender.com"; 
+        const TARGET_DESTINATION_URL = "https://t.me/your_telegram_channel";
 
-        async function fetchWithRetry(url, retries = 3, delay = 2000) {
-            for (let i = 0; i < retries; i++) {
-                try {
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 15000);
-                    
-                    const res = await fetch(url, { signal: controller.signal });
-                    clearTimeout(timeoutId);
-                    
-                    if (res.ok) return await res.json();
-                } catch (err) {
-                    if (i < retries - 1) await new Promise(r => setTimeout(r, delay));
-                }
-            }
-            throw new Error("Server timeout");
-        }
+        // Unbreakable High-Speed Catalog Feed
+        const VIDEO_CATALOG = [
+            { title: "Hot Model Exclusive Private Stream #1", thumbnail: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=60" },
+            { title: "VIP Vault Unlocked - Secret Session Vol 2", thumbnail: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=500&auto=format&fit=crop&q=60" },
+            { title: "Trending Premium Gold Selection #88", thumbnail: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=500&auto=format&fit=crop&q=60" },
+            { title: "Blonde Special Midnight Tape", thumbnail: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=500&auto=format&fit=crop&q=60" },
+            { title: "Exclusive Ultra HD Private Room", thumbnail: "https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=500&auto=format&fit=crop&q=60" },
+            { title: "VIP Content Collection Edition 2026", thumbnail: "https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?w=500&auto=format&fit=crop&q=60" },
+            { title: "Top Rated Pass Unlimited Access", thumbnail: "https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?w=500&auto=format&fit=crop&q=60" },
+            { title: "Platinum VIP Unlocked Stream", thumbnail: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=500&auto=format&fit=crop&q=60" },
+            { title: "Private Vault Special High-Definition", thumbnail: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=500&auto=format&fit=crop&q=60" }
+        ];
 
-        async function loadCatalog() {
-            const container = document.getElementById('catalog');
-            try {
-                const videos = await fetchWithRetry(`${API_URL}/api/videos`);
-                
-                if (!videos || videos.length === 0) {
-                    container.innerHTML = `<div class="status-msg">No media available at the moment.</div>`;
-                    return;
-                }
-
-                container.innerHTML = videos.map(v => `
-                    <div class="card">
-                        <img src="${v.thumbnail}" alt="thumb" onerror="this.src='https://picsum.photos/300/200'" />
-                        <div class="card-body">
-                            <div class="card-title">${v.title}</div>
-                            <button class="unlock-btn" onclick="unlockContent('${v.targetUrl}')">
-                                ▶ UNLOCK
-                            </button>
-                        </div>
-                    </div>
-                `).join('');
-            } catch (err) {
-                container.innerHTML = `
-                    <div class="status-msg">
-                        Server connection delayed.<br><br>
-                        <button class="unlock-btn" style="width: auto; padding: 6px 16px;" onclick="loadCatalog()">
-                            🔄 Tap to Retry
+        function createCardHtml(v) {
+            return `
+                <div class="card">
+                    <img src="${v.thumbnail}" alt="thumb" />
+                    <div class="card-body">
+                        <div class="card-title">${v.title}</div>
+                        <button class="unlock-btn" onclick="unlockContent('${TARGET_DESTINATION_URL}')">
+                            ▶ UNLOCK
                         </button>
                     </div>
-                `;
-            }
+                </div>
+            `;
+        }
+
+        function createBannerHtml() {
+            return `
+                <div class="zero-ads-row-banner" onclick="buyVipPass()">
+                    <div class="zero-ads-left">
+                        <div class="icon-box">⚡</div>
+                        <div class="zero-ads-text">
+                            <span class="zero-ads-title">Zero Ads Experience</span>
+                            <span class="zero-ads-sub">Bypass all ads & stream instantly for 3 Mo ₹399</span>
+                        </div>
+                    </div>
+                    <div class="zero-ads-arrow">›</div>
+                </div>
+            `;
+        }
+
+        function renderCatalog() {
+            const container = document.getElementById('catalog');
+            let gridContent = "";
+
+            VIDEO_CATALOG.forEach((v, index) => {
+                if (index === 6) {
+                    gridContent += createBannerHtml();
+                }
+                gridContent += createCardHtml(v);
+            });
+
+            container.innerHTML = gridContent;
         }
 
         function unlockContent(destination) {
@@ -292,7 +287,7 @@
             alert("👑 Zero Ads VIP Pass\n\nBypass all ads & stream instantly for 3 Months (₹399).\n\nRedirecting to payment gateway...");
         }
 
-        loadCatalog();
+        renderCatalog();
     </script>
 </body>
 </html>
