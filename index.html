@@ -1,308 +1,335 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VIP Content Vault</title>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="https://sad.adsgram.ai/js/sad.min.js"></script>
-    <style>
-        :root {
-            --bg-dark: #08090d;
-            --card-bg: #11131a;
-            --gold-accent: #eab308;
-            --silver-gradient: linear-gradient(180deg, #ffffff 0%, #cbd5e1 50%, #64748b 100%);
-        }
-
-        body { 
-            background-color: var(--bg-dark); 
-            color: #e2e8f0; 
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
-            padding: 12px; 
-            margin: 0; 
-            box-sizing: border-box;
-        }
-
-        /* Top Bar: Title + Pill Button */
-        .top-bar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 12px;
-        }
-
-        /* Metallic Silver Header Title (including stars) */
-        .header-title {
-            font-size: 15px;
-            font-weight: 900;
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
-            background: var(--silver-gradient);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin: 0;
-            filter: drop-shadow(0 2px 4px rgba(255, 255, 255, 0.15));
-        }
-
-        /* Top Right VIP Pill Button (Copied exactly) */
-        .vip-pill-btn {
-            background: #111009;
-            border: 1px solid var(--gold-accent);
-            color: var(--gold-accent);
-            font-size: 10px;
-            font-weight: 700;
-            padding: 5px 12px;
-            border-radius: 20px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            box-shadow: 0 0 6px rgba(234, 179, 8, 0.2);
-            transition: transform 0.2s;
-        }
-        .vip-pill-btn:active {
-            transform: scale(0.95);
-        }
-
-        /* Full Zero Ads Experience Card (Copied exactly from reference) */
-        .zero-ads-card {
-            background: #111218;
-            border: 1px solid rgba(234, 179, 8, 0.4);
-            border-radius: 12px;
-            padding: 10px 12px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 16px;
-            cursor: pointer;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-            transition: border-color 0.2s, transform 0.2s;
-        }
-        .zero-ads-card:active {
-            transform: scale(0.98);
-            border-color: var(--gold-accent);
-        }
-
-        .zero-ads-left {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        /* Golden Lightning Icon Box */
-        .icon-box {
-            background: rgba(234, 179, 8, 0.15);
-            border: 1px solid rgba(234, 179, 8, 0.3);
-            border-radius: 8px;
-            width: 34px;
-            height: 34px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--gold-accent);
-            font-size: 16px;
-            font-weight: bold;
-        }
-
-        .zero-ads-text {
-            display: flex;
-            flex-direction: column;
-        }
-        .zero-ads-title {
-            font-size: 12px;
-            font-weight: 800;
-            color: var(--gold-accent);
-        }
-        .zero-ads-sub {
-            font-size: 10px;
-            color: #94a3b8;
-            margin-top: 1px;
-        }
-
-        .zero-ads-arrow {
-            color: var(--gold-accent);
-            font-size: 14px;
-            font-weight: bold;
-        }
-
-        /* 3-Column Grid */
-        .grid { 
-            display: grid; 
-            grid-template-columns: repeat(3, 1fr); 
-            gap: 8px; 
-        }
-
-        .card { 
-            background: var(--card-bg); 
-            border-radius: 8px; 
-            overflow: hidden; 
-            display: flex; 
-            flex-direction: column; 
-            justify-content: space-between;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.6);
-        }
-
-        .card img { 
-            width: 100%; 
-            height: 90px; 
-            object-fit: cover; 
-            background: #1a1c23;
-        }
-
-        .card-body { 
-            padding: 6px; 
-            display: flex; 
-            flex-direction: column; 
-            justify-content: space-between; 
-            flex: 1; 
-        }
-
-        .card-title { 
-            font-size: 10px; 
-            font-weight: 600; 
-            line-height: 1.2; 
-            height: 24px; 
-            overflow: hidden; 
-            margin-bottom: 6px;
-            color: #d1d5db;
-        }
-
-        /* Glowing Gold Unlock Button */
-        .unlock-btn { 
-            width: 100%; 
-            padding: 6px 0; 
-            border: 1px solid rgba(234, 179, 8, 0.4); 
-            border-radius: 5px; 
-            background: linear-gradient(180deg, #1f1a00 0%, #0a0800 100%); 
-            color: var(--gold-accent); 
-            font-weight: 800; 
-            cursor: pointer; 
-            font-size: 9px; 
-            letter-spacing: 0.3px;
-            text-transform: uppercase;
-            text-shadow: 0 0 6px rgba(234, 179, 8, 0.8);
-            box-shadow: 0 0 8px rgba(234, 179, 8, 0.2);
-            transition: all 0.2s ease;
-        }
-
-        .unlock-btn:active { 
-            transform: scale(0.95);
-            box-shadow: 0 0 12px rgba(234, 179, 8, 0.5);
-        }
-
-        .status-msg {
-            text-align: center;
-            grid-column: span 3;
-            padding: 30px 0;
-            color: #a0aec0;
-            font-size: 12px;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#09090d">
+  <title>VIP Content Vault</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #09090d;
+      --panel: #111118;
+      --panel-2: #171720;
+      --line: rgba(255,255,255,.09);
+      --text: #f6f4f0;
+      --muted: #a5a3b2;
+      --gold: #e7c477;
+      --gold-2: #b88b3b;
+      --radius: 18px;
+    }
+    * { box-sizing: border-box; }
+    html { min-height: 100%; background: var(--bg); }
+    body {
+      margin: 0; min-height: 100vh; color: var(--text);
+      background:
+        radial-gradient(ellipse at 50% -15%, rgba(183,139,59,.14), transparent 42%),
+        var(--bg);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    button, input { font: inherit; }
+    button { -webkit-tap-highlight-color: transparent; }
+    .app { width: min(100%, 980px); margin: 0 auto; padding: max(18px, env(safe-area-inset-top)) 16px calc(28px + env(safe-area-inset-bottom)); }
+    .topbar { display:flex; align-items:center; justify-content:space-between; gap:12px; padding: 4px 0 20px; }
+    .brand { display:flex; align-items:center; gap:11px; min-width:0; }
+    .brand-mark {
+      width: 42px; height:42px; flex:0 0 auto; display:grid; place-items:center;
+      border:1px solid rgba(231,196,119,.42); border-radius:14px;
+      background: linear-gradient(145deg, #2b2418, #111015 72%);
+      color:var(--gold); font-size:20px; box-shadow:0 6px 24px #0006;
+    }
+    .brand-name { margin:0; font-size:14px; line-height:1.15; font-weight:850; letter-spacing:.12em; }
+    .brand-caption { margin:5px 0 0; font-size:10px; color:var(--muted); letter-spacing:.16em; text-transform:uppercase; }
+    .vip-btn { border:1px solid rgba(231,196,119,.5); color:var(--gold); background:#211b12; border-radius:999px; padding:10px 13px; font-size:11px; font-weight:800; white-space:nowrap; }
+    .hero {
+      position:relative; overflow:hidden; padding:23px 20px; border:1px solid rgba(231,196,119,.2);
+      border-radius:22px; background:linear-gradient(115deg, rgba(49,39,24,.95), rgba(20,19,25,.96) 60%, #121117);
+      margin-bottom:20px; box-shadow:0 14px 40px #0003;
+    }
+    .hero:after { content:""; position:absolute; width:180px; height:180px; border:1px solid #e7c47718; border-radius:50%; right:-48px; top:-76px; box-shadow:0 0 0 22px #e7c47708, 0 0 0 44px #e7c47705; pointer-events:none; }
+    .eyebrow { display:flex; align-items:center; gap:8px; color:var(--gold); font-size:10px; font-weight:800; letter-spacing:.18em; text-transform:uppercase; }
+    .eyebrow:before { content:""; width:18px; height:1px; background:var(--gold); }
+    .hero h2 { margin:12px 0 8px; max-width:500px; font-size:clamp(24px, 5vw, 34px); line-height:1.08; letter-spacing:-.04em; }
+    .hero p { margin:0; max-width:440px; color:#c0bdc8; font-size:12px; line-height:1.65; }
+    .hero-foot { display:flex; align-items:center; gap:8px; margin-top:18px; font-size:10px; color:#e2d5b6; }
+    .live-dot { width:7px; height:7px; background:#8fd4a5; border-radius:50%; box-shadow:0 0 10px #8fd4a577; }
+    .toolbar { display:flex; gap:10px; margin:0 0 20px; }
+    .search-wrap { position:relative; flex:1; min-width:0; }
+    .search-icon { position:absolute; top:50%; left:14px; transform:translateY(-50%); color:#8d8999; pointer-events:none; font-size:16px; }
+    .search { width:100%; height:46px; padding:0 14px 0 40px; border:1px solid var(--line); border-radius:14px; outline:none; color:var(--text); background:#13131a; font-size:13px; }
+    .search:focus { border-color:#b88b3b99; box-shadow:0 0 0 3px #b88b3b18; }
+    .refresh-btn { width:46px; flex:0 0 46px; border:1px solid var(--line); border-radius:14px; background:#13131a; color:#e9e4d9; font-size:18px; }
+    .section-head { display:flex; align-items:end; justify-content:space-between; gap:10px; margin:0 2px 13px; }
+    .section-head h3 { margin:0; font-size:16px; letter-spacing:-.02em; }
+    .section-head p { margin:5px 0 0; font-size:11px; color:var(--muted); }
+    .count { color:var(--gold); background:#e7c47714; border:1px solid #e7c47725; padding:5px 8px; border-radius:999px; font-size:10px; font-weight:750; white-space:nowrap; }
+    .grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+    .card { min-width:0; overflow:hidden; border:1px solid var(--line); border-radius:16px; background:linear-gradient(180deg,#17171f,#111117); box-shadow:0 8px 22px #0002; transition:transform .18s ease,border-color .18s ease; }
+    .card:active { transform:scale(.985); }
+    .thumb-wrap { position:relative; aspect-ratio: 4 / 3; overflow:hidden; background:linear-gradient(135deg,#24232b,#14141a); }
+    .thumb { width:100%; height:100%; display:block; object-fit:cover; }
+    .thumb-placeholder { position:absolute; inset:0; display:grid; place-items:center; color:#a99a7a; font-size:30px; background:radial-gradient(circle at 50% 35%,#39302a,#15151c 65%); }
+    .thumb-badge { position:absolute; left:9px; top:9px; padding:5px 7px; border:1px solid #ffffff22; border-radius:7px; background:#09090dc9; color:#f4e5c4; font-size:9px; font-weight:800; letter-spacing:.08em; backdrop-filter:blur(8px); }
+    .play-indicator { position:absolute; right:9px; bottom:9px; display:grid; place-items:center; width:32px; height:32px; border:1px solid #ffffff38; border-radius:50%; color:white; background:#09090dbb; backdrop-filter:blur(8px); }
+    .card-body { padding:11px; }
+    .card-title { margin:0 0 11px; min-height:34px; font-size:12px; font-weight:700; line-height:1.4; color:#f1eff5; overflow-wrap:anywhere; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+    .watch-btn { width:100%; min-height:38px; border:1px solid #e7c47755; border-radius:10px; background:linear-gradient(135deg,#e7c477,#b98b3e); color:#19140c; font-size:11px; font-weight:900; letter-spacing:.035em; }
+    .watch-btn:active, .vip-btn:active, .refresh-btn:active { transform:scale(.98); }
+    .state { grid-column:1/-1; text-align:center; padding:38px 18px; border:1px dashed #ffffff1b; border-radius:16px; background:#111117aa; }
+    .state-icon { font-size:27px; margin-bottom:10px; }
+    .state h4 { margin:0 0 7px; font-size:14px; }
+    .state p { margin:0 auto 15px; max-width:280px; color:var(--muted); font-size:12px; line-height:1.6; }
+    .state-btn { padding:10px 15px; border:1px solid #e7c47755; border-radius:10px; background:#211b12; color:var(--gold); font-size:11px; font-weight:800; }
+    .footer { text-align:center; padding:24px 8px 4px; color:#6e6b78; font-size:10px; line-height:1.7; }
+    .modal-backdrop { position:fixed; inset:0; z-index:10; display:none; align-items:center; justify-content:center; padding:20px; background:#000b; backdrop-filter:blur(8px); }
+    .modal-backdrop.open { display:flex; }
+    .modal { width:min(100%,360px); padding:23px; border:1px solid #e7c47744; border-radius:20px; background:#15141a; box-shadow:0 24px 80px #0008; }
+    .modal h3 { margin:0 0 9px; font-size:19px; }
+    .modal p { margin:0 0 18px; color:var(--muted); font-size:12px; line-height:1.7; }
+    .modal-close { width:100%; padding:12px; border:0; border-radius:11px; background:var(--gold); color:#19140c; font-weight:850; }
+    @media (min-width:620px) { .app { padding-left:24px; padding-right:24px; } .grid { grid-template-columns:repeat(3,minmax(0,1fr)); gap:15px; } .thumb-wrap { aspect-ratio:16/10; } .card-title { font-size:13px; min-height:37px; } .card-body { padding:13px; } }
+    @media (min-width:850px) { .grid { grid-template-columns:repeat(4,minmax(0,1fr)); } }
+    @media (prefers-reduced-motion:reduce) { *,*:before,*:after { transition:none!important; scroll-behavior:auto!important; } }
+  </style>
 </head>
 <body>
-
-    <!-- Top Header -->
-    <div class="top-bar">
-        <h1 class="header-title">✨ VIP CONTENT VAULT</h1>
-        <button class="vip-pill-btn" onclick="buyVipPass()">
-            👑 Get VIP (0 Ads)
-        </button>
-    </div>
-
-    <!-- Zero Ads Experience Card (Exact style from reference player) -->
-    <div class="zero-ads-card" onclick="buyVipPass()">
-        <div class="zero-ads-left">
-            <div class="icon-box">⚡</div>
-            <div class="zero-ads-text">
-                <span class="zero-ads-title">Zero Ads Experience</span>
-                <span class="zero-ads-sub">Bypass all ads & stream instantly for 3 Mo ₹399</span>
-            </div>
+  <main class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">V</div>
+        <div>
+          <h1 class="brand-name">VIP CONTENT VAULT</h1>
+          <p class="brand-caption">Curated video collection</p>
         </div>
-        <div class="zero-ads-arrow">›</div>
+      </div>
+      <button class="vip-btn" id="vipButton" type="button">♛ &nbsp; VIP ACCESS</button>
+    </header>
+
+    <section class="hero" aria-labelledby="heroTitle">
+      <div class="eyebrow">The premium collection</div>
+      <h2 id="heroTitle">Your next watch<br>starts here.</h2>
+      <p>Explore the latest available videos in a clean, cinematic browsing experience.</p>
+      <div class="hero-foot"><span class="live-dot"></span><span id="catalogStatus">Connecting to catalog…</span></div>
+    </section>
+
+    <div class="toolbar">
+      <label class="search-wrap">
+        <span class="search-icon" aria-hidden="true">⌕</span>
+        <input class="search" id="searchInput" type="search" placeholder="Search the collection…" autocomplete="off" aria-label="Search videos">
+      </label>
+      <button class="refresh-btn" id="refreshButton" type="button" aria-label="Refresh catalog" title="Refresh catalog">↻</button>
     </div>
 
-    <!-- 3 Column Catalog Grid -->
-    <div class="grid" id="catalog">
-        <div class="status-msg">⚡ Loading VIP Catalog...</div>
+    <section aria-labelledby="collectionTitle">
+      <div class="section-head">
+        <div>
+          <h3 id="collectionTitle">Explore collection</h3>
+          <p id="collectionSubtitle">The latest additions, all in one place</p>
+        </div>
+        <span class="count" id="videoCount">Loading</span>
+      </div>
+      <div class="grid" id="catalog" aria-live="polite">
+        <div class="state"><div class="state-icon">◌</div><h4>Preparing your collection</h4><p>Connecting securely to the catalog…</p></div>
+      </div>
+    </section>
+
+    <footer class="footer">VIP CONTENT VAULT · Made for mobile browsing<br>Only open content you are authorized to access.</footer>
+  </main>
+
+  <div class="modal-backdrop" id="vipModal" role="dialog" aria-modal="true" aria-labelledby="vipModalTitle">
+    <div class="modal">
+      <h3 id="vipModalTitle">VIP access</h3>
+      <p>VIP checkout has not been connected yet. No payment has been taken. Add your verified payment provider before offering paid access.</p>
+      <button class="modal-close" id="closeModal" type="button">Got it</button>
     </div>
+  </div>
 
-    <script>
-        const API_URL = "https://media-vault-backend-r56c.onrender.com";
+  <script>
+    const API_URL = "https://media-vault-backend-r56c.onrender.com";
+    const catalog = document.getElementById("catalog");
+    const searchInput = document.getElementById("searchInput");
+    const videoCount = document.getElementById("videoCount");
+    const catalogStatus = document.getElementById("catalogStatus");
+    const refreshButton = document.getElementById("refreshButton");
+    let allVideos = [];
+    let isLoading = false;
 
-        async function fetchWithRetry(url, retries = 3, delay = 2000) {
-            for (let i = 0; i < retries; i++) {
-                try {
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 15000);
-                    
-                    const res = await fetch(url, { signal: controller.signal });
-                    clearTimeout(timeoutId);
-                    
-                    if (res.ok) return await res.json();
-                } catch (err) {
-                    if (i < retries - 1) await new Promise(r => setTimeout(r, delay));
-                }
-            }
-            throw new Error("Server timeout");
+    // Telegram Mini App setup is optional, so the page also works in a regular browser.
+    try {
+      const tg = window.Telegram && window.Telegram.WebApp;
+      if (tg) { tg.ready(); tg.expand(); }
+    } catch (_) {}
+
+    function showState(icon, title, message, buttonLabel, onClick) {
+      catalog.replaceChildren();
+      const state = document.createElement("div");
+      state.className = "state";
+      const iconEl = document.createElement("div");
+      iconEl.className = "state-icon";
+      iconEl.textContent = icon;
+      const titleEl = document.createElement("h4");
+      titleEl.textContent = title;
+      const messageEl = document.createElement("p");
+      messageEl.textContent = message;
+      state.append(iconEl, titleEl, messageEl);
+      if (buttonLabel && onClick) {
+        const button = document.createElement("button");
+        button.className = "state-btn";
+        button.type = "button";
+        button.textContent = buttonLabel;
+        button.addEventListener("click", onClick);
+        state.append(button);
+      }
+      catalog.append(state);
+    }
+
+    async function fetchWithTimeout(url, timeoutMs = 18000) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        const response = await fetch(url, {
+          method: "GET",
+          headers: { "Accept": "application/json" },
+          cache: "no-store",
+          signal: controller.signal
+        });
+        if (!response.ok) throw new Error("Catalog request failed (" + response.status + ")");
+        return await response.json();
+      } finally {
+        clearTimeout(timeout);
+      }
+    }
+
+    function normalizeVideo(video, index) {
+      if (!video || typeof video !== "object") return null;
+      const title = String(video.title || video.name || video.label || ("Video " + (index + 1)));
+      const thumbnail = String(video.thumbnail || video.image || video.poster || video.thumb || "");
+      const destination = String(video.targetUrl || video.url || video.embedUrl || video.link || "");
+      return { title, thumbnail, destination };
+    }
+
+    function safeHttpUrl(value) {
+      try {
+        const url = new URL(value);
+        return ["https:", "http:"].includes(url.protocol) ? url.href : "";
+      } catch (_) { return ""; }
+    }
+
+    function renderVideos() {
+      const query = searchInput.value.trim().toLocaleLowerCase();
+      const filtered = allVideos.filter(v => v.title.toLocaleLowerCase().includes(query));
+      videoCount.textContent = filtered.length + (filtered.length === 1 ? " VIDEO" : " VIDEOS");
+      if (!filtered.length) {
+        showState("⌕", query ? "No matching videos" : "Nothing to show yet",
+          query ? "Try another search term." : "The catalog is reachable, but it has no available entries right now.");
+        return;
+      }
+
+      catalog.replaceChildren();
+      const fragment = document.createDocumentFragment();
+      filtered.forEach((video, index) => {
+        const card = document.createElement("article");
+        card.className = "card";
+
+        const thumbWrap = document.createElement("div");
+        thumbWrap.className = "thumb-wrap";
+        const placeholder = document.createElement("div");
+        placeholder.className = "thumb-placeholder";
+        placeholder.textContent = "▶";
+        thumbWrap.append(placeholder);
+
+        const thumbUrl = safeHttpUrl(video.thumbnail);
+        if (thumbUrl) {
+          const img = document.createElement("img");
+          img.className = "thumb";
+          img.loading = "lazy";
+          img.decoding = "async";
+          img.alt = "";
+          img.src = thumbUrl;
+          img.addEventListener("load", () => placeholder.remove(), { once: true });
+          img.addEventListener("error", () => img.remove(), { once: true });
+          thumbWrap.append(img);
         }
 
-        async function loadCatalog() {
-            const container = document.getElementById('catalog');
-            try {
-                const videos = await fetchWithRetry(`${API_URL}/api/videos`);
-                
-                if (!videos || videos.length === 0) {
-                    container.innerHTML = `<div class="status-msg">No media available at the moment.</div>`;
-                    return;
-                }
+        const badge = document.createElement("span");
+        badge.className = "thumb-badge";
+        badge.textContent = "FEATURED";
+        const play = document.createElement("span");
+        play.className = "play-indicator";
+        play.setAttribute("aria-hidden", "true");
+        play.textContent = "▶";
+        thumbWrap.append(badge, play);
 
-                container.innerHTML = videos.map(v => `
-                    <div class="card">
-                        <img src="${v.thumbnail}" alt="thumb" onerror="this.src='https://picsum.photos/300/200'" />
-                        <div class="card-body">
-                            <div class="card-title">${v.title}</div>
-                            <button class="unlock-btn" onclick="unlockContent('${v.targetUrl}')">
-                                ▶ UNLOCK
-                            </button>
-                        </div>
-                    </div>
-                `).join('');
-            } catch (err) {
-                container.replaceChildren();
-                const status = document.createElement("div");
-                status.className = "status-msg";
-                status.textContent = "Catalog temporarily unavailable. Please try again.";
-                const retry = document.createElement("button");
-                retry.className = "unlock-btn";
-                retry.style.cssText = "width:auto;padding:6px 16px;margin-top:12px";
-                retry.textContent = "🔄 Tap to Retry";
-                retry.addEventListener("click", loadCatalog);
-                status.append(document.createElement("br"), retry);
-                container.append(status);
-            }
-        }
+        const body = document.createElement("div");
+        body.className = "card-body";
+        const title = document.createElement("h4");
+        title.className = "card-title";
+        title.textContent = video.title;
+        const watch = document.createElement("button");
+        watch.className = "watch-btn";
+        watch.type = "button";
+        watch.textContent = "▶  WATCH VIDEO";
+        watch.addEventListener("click", () => openDestination(video.destination));
+        body.append(title, watch);
+        card.append(thumbWrap, body);
+        fragment.append(card);
+      });
+      catalog.append(fragment);
+    }
 
-        function unlockContent(destination) {
-            if (!destination) return;
-            try {
-                const parsed = new URL(destination);
-                if (!["https:", "http:"].includes(parsed.protocol)) return;
-                if (window.Telegram && window.Telegram.WebApp && typeof window.Telegram.WebApp.openLink === "function") {
-                    window.Telegram.WebApp.openLink(parsed.toString());
-                } else {
-                    window.open(parsed.toString(), "_blank", "noopener,noreferrer");
-                }
-            } catch (_) {
-                console.warn("Invalid video destination");
-            }
-        }
+    function openDestination(destination) {
+      const url = safeHttpUrl(destination);
+      if (!url) {
+        showState("!", "Video link unavailable", "This catalog entry does not have a valid destination link.");
+        return;
+      }
+      try {
+        const tg = window.Telegram && window.Telegram.WebApp;
+        if (tg && typeof tg.openLink === "function") tg.openLink(url);
+        else window.open(url, "_blank", "noopener,noreferrer");
+      } catch (_) {
+        window.open(url, "_blank", "noopener,noreferrer");
+      }
+    }
 
-        function buyVipPass() {
-            alert("👑 Zero Ads VIP Pass\n\nBypass all ads & stream instantly for 3 Months (₹399).\n\nRedirecting to payment gateway...");
-        }
+    async function loadCatalog() {
+      if (isLoading) return;
+      isLoading = true;
+      refreshButton.disabled = true;
+      refreshButton.textContent = "…";
+      catalogStatus.textContent = "Refreshing catalog…";
+      try {
+        const data = await fetchWithTimeout(API_URL + "/api/videos");
+        // The backend currently returns { videos: [...], lastUpdated, refreshing }.
+        // Accept a bare array too, for compatibility with older deployments.
+        const list = Array.isArray(data) ? data : (Array.isArray(data && data.videos) ? data.videos : []);
+        allVideos = list.map(normalizeVideo).filter(Boolean);
+        catalogStatus.textContent = "Catalog connected";
+        renderVideos();
+      } catch (error) {
+        console.error("Catalog load failed:", error);
+        catalogStatus.textContent = "Catalog connection issue";
+        videoCount.textContent = "UNAVAILABLE";
+        showState("↻", "Couldn’t load the collection",
+          "Check your connection and try again. If this keeps happening, the catalog API may be unavailable inside this webview.",
+          "TAP TO RETRY", loadCatalog);
+      } finally {
+        isLoading = false;
+        refreshButton.disabled = false;
+        refreshButton.textContent = "↻";
+      }
+    }
 
-        loadCatalog();
-    </script>
+    searchInput.addEventListener("input", renderVideos);
+    refreshButton.addEventListener("click", loadCatalog);
+    document.getElementById("vipButton").addEventListener("click", () => document.getElementById("vipModal").classList.add("open"));
+    document.getElementById("closeModal").addEventListener("click", () => document.getElementById("vipModal").classList.remove("open"));
+    document.getElementById("vipModal").addEventListener("click", event => {
+      if (event.target.id === "vipModal") event.currentTarget.classList.remove("open");
+    });
+    loadCatalog();
+  </script>
 </body>
 </html>
