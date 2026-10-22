@@ -346,6 +346,7 @@ async function handleWatchClick(video) {
         }
       }
     }
+    // --- IN-APP PLAYER WITH FULL VIDEO CONTROLS ---
     function openInAppVideo(title, videoUrl) {
       const modal = document.getElementById("playerModal");
       const playerBody = document.getElementById("playerBody");
@@ -356,11 +357,14 @@ async function handleWatchClick(video) {
 
       const videoElement = document.createElement("video");
       videoElement.src = videoUrl;
-      videoElement.controls = true;
-      videoElement.autoplay = true;
-      videoElement.playsInline = true;
+      videoElement.controls = true;         // Enables play, pause, seek bar, time, volume & fullscreen
+      videoElement.autoplay = true;         // Starts playing automatically
+      videoElement.playsInline = true;       // Plays within the webview frame
+      videoElement.controlsList = "nodownload"; // Prevents direct video download button if desired
+      videoElement.style.width = "100%";
+      videoElement.style.height = "100%";
+      
       playerBody.append(videoElement);
-
       modal.classList.add("open");
     }
 
