@@ -313,7 +313,7 @@
       catalog.append(fragment);
     }
 
-    // --- REQUIRE 3 ADS SEQUENTIALLY BEFORE WATCHING ---
+    // --- REQUIRE 1 AD BEFORE WATCHING ---
     async function handleWatchClick(video) {
       const url = safeHttpUrl(video.destination);
       if (!url) {
@@ -323,17 +323,11 @@
 
       if (adController) {
         try {
-          console.log("Playing Ad 1 of 3...");
-          await adController.show();
-
-          console.log("Playing Ad 2 of 3...");
-          await adController.show();
-
-          console.log("Playing Ad 3 of 3...");
+          // Play just 1 ad
           await adController.show();
         } catch (err) {
-          console.log("Ad skipped/cancelled:", err);
-          alert("Please finish watching all 3 ads to unlock playback!");
+          console.log("Ad skipped or failed:", err);
+          alert("Please finish watching the ad to unlock playback!");
           return;
         }
       }
