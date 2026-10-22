@@ -334,23 +334,43 @@
       catalog.append(fragment);
     }
 
-async function handleWatchClick(video) {
-      const url = safeHttpUrl(video.destination);
-      if (!url) {
-        alert("Destination URL is invalid!");
-        return;
-      }
+// Function triggered when a user clicks "WATCH VIDEO"
+function handleWatchVideo(video) {
+  // Check if the user has VIP access stored in their browser
+  const isVip = localStorage.getItem("is_vip") === "true";
 
-      // 1. Show the single ad
-      if (adController) {
-        try {
-          await adController.show();
-        } catch (err) {
-          console.log("Ad skipped or failed:", err);
-          alert("Please finish watching the ad to unlock playback!");
-          return;
+  if (isVip) {
+    // --- VIP USER: Skip Ads entirely and open the video player right away ---
+    console.log("VIP user detected. Bypassing ads.");
+    if (typeof openVideoModal === "function") {
+      openVideoModal(video.watchUrl, video.title);
+    } else {
+      window.open(video.watchUrl, "_blank");
+    }
+  } else {
+    // --- FREE USER: Show Adsgram Rewarded Ad first ---
+    if (window.Adsgram && typeof window.Adsgram.init === "function") {
+      window.Adsgram.init({ blockId: "55423" }).show().then((result) => {
+        // User finished watching the ad successfully
+        if (typeof openVideoModal === "function") {
+          openVideoModal(video.watchUrl, video.title);
+        } else {
+          window.open(video.watchUrl, "_blank");
         }
+      }).catch((err) => {
+        console.log("Ad skipped or failed to load:", err);
+        // Optional: you can alert them or let them proceed if ad fails
+      });
+    } else {
+      // Fallback if Adsgram fails to load globally
+      if (typeof openVideoModal === "function") {
+        openVideoModal(video.watchUrl, video.title);
+      } else {
+        window.open(video.watchUrl, "_blank");
       }
+    }
+  }
+}
 
       // 2. Check video type and open accordingly
       const isTelegramVideo = video.isManual || video.source === "Telegram Private Vault" || url.includes("telegram.org");
