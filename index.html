@@ -273,8 +273,8 @@
         watch.className = "watch-btn";
         watch.type = "button";
         watch.textContent = "▶  WATCH VIDEO";
-        watch.addEventListener("click", () => {
-  // Initialize Adsgram (replace YOUR_UNIT_ID with your actual Unit ID)
+ watch.addEventListener("click", () => {
+  // Initialize Adsgram with your Unit ID
   const AdController = window.Adsgram.init({ blockId: "55423" });
 
   AdController.show()
@@ -283,8 +283,8 @@
       openDestination(video.destination);
     })
     .catch((error) => {
-      // Ad closed early or failed
-      console.log("Ad skipped or failed", error);
+      // Ad closed early or failed to load
+      console.log("Ad skipped or failed:", error);
       alert("Please watch the full ad to unlock this video!");
     });
 });
