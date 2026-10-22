@@ -1,4 +1,3 @@
-
 const express = require("express");
 const cors = require("cors");
 
@@ -8,6 +7,10 @@ const CACHE_MS = 10 * 60 * 1000;
 
 app.use(cors());
 app.use(express.json());
+
+// Telegram Private Channel Config from Environment Variables
+const BOT_TOKEN = process.env.BOT_TOKEN || "";
+const CHANNEL_ID = process.env.CHANNEL_ID || "";
 
 let videos = [];
 let lastUpdated = null;
@@ -20,6 +23,55 @@ app.get("/", (_req, res) => {
 
 app.get("/health", (_req, res) => {
   res.status(200).json({ status: "ok" });
+});
+
+// --- TELEGRAM PRIVATE CHANNEL VIDEOS ENDPOINT ---
+app.get("/api/telegram-videos", async (_req, res) => {
+  try {
+    if (!BOT_TOKEN) {
+      return res.json({ videos: [] });
+    }
+
+    const response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getUpdates`, {
+      signal: AbortSignal.timeout(10000)
+    });
+    const data = await response.json();
+
+    if (!data.ok) {
+      return res.status(500).json({ error: "Failed to fetch channel posts from Telegram" });
+    }
+
+    const tgVideos = [];
+
+    for (const update of data.result) {
+      const message = update.channel_post || update.message;
+      if (message && message.video && String(message.chat.id) === String(CHANNEL_ID)) {
+        const fileId = message.video.file_id;
+        const caption = message.caption || "Private VIP Video";
+
+        const fileRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getFile?file_id=${fileId}`);
+        const fileData = await fileRes.json();
+
+        if (fileData.ok && fileData.result.file_path) {
+          const directUrl = `https://api.telegram.org/file/bot${BOT_TOKEN}/${fileData.result.file_path}`;
+          tgVideos.push({
+            id: fileId,
+            title: caption,
+            thumbnail: "",
+            watchUrl: directUrl,
+            targetUrl: directUrl,
+            isManual: true,
+            source: "Telegram Private Vault"
+          });
+        }
+      }
+    }
+
+    res.json({ videos: tgVideos.reverse() });
+  } catch (err) {
+    console.error("Telegram fetch error:", err);
+    res.status(500).json({ error: "Server error fetching Telegram videos" });
+  }
 });
 
 app.get("/api/videos", (_req, res) => {
@@ -49,9 +101,7 @@ function firstString(...values) {
     if (typeof value === "string" && value.trim()) {
       return value.trim();
     }
-
-    if (value && typeof value === "object" &&
-        typeof value.src === "string" && value.src.trim()) {
+    if (value && typeof value === "object" && typeof value.src === "string" && value.src.trim()) {
       return value.src.trim();
     }
   }
@@ -107,19 +157,14 @@ function normalize(item, source) {
     thumbnail: validThumbnail,
     watchUrl,
     targetUrl: watchUrl,
+    isManual: false,
     source
   };
 }
 
 async function fetchEporner() {
-  const url = new URL(
-    "https://www.eporner.com/api/v2/video/search/"
-  );
-
-  url.searchParams.set(
-    "query",
-    process.env.EPORNER_QUERY || "trending"
-  );
+  const url = new URL("https://www.eporner.com/api/v2/video/search/");
+  url.searchParams.set("query", process.env.EPORNER_QUERY || "trending");
   url.searchParams.set("per_page", "30");
   url.searchParams.set("format", "json");
 
@@ -132,7 +177,6 @@ async function fetchEporner() {
   }
 
   const data = await response.json();
-
   const items = Array.isArray(data.videos)
     ? data.videos
     : Array.isArray(data.videos?.video)
@@ -141,9 +185,7 @@ async function fetchEporner() {
         ? data
         : [];
 
-  return items
-    .map(item => normalize(item, "Eporner"))
-    .filter(Boolean);
+  return items.map(item => normalize(item, "Eporner")).filter(Boolean);
 }
 
 async function fetchJsonFeed(feedUrl) {
@@ -156,22 +198,14 @@ async function fetchJsonFeed(feedUrl) {
   }
 
   const data = await response.json();
-
-  const items = Array.isArray(data)
-    ? data
-    : Array.isArray(data.videos)
-      ? data.videos
-      : [];
-
+  const items = Array.isArray(data) ? data : Array.isArray(data.videos) ? data.videos : [];
   let source = "Additional source";
 
   try {
     source = new URL(feedUrl).hostname;
   } catch {}
 
-  return items
-    .map(item => normalize(item, source))
-    .filter(Boolean);
+  return items.map(item => normalize(item, source)).filter(Boolean);
 }
 
 async function refreshCatalog() {
@@ -206,11 +240,6 @@ async function refreshCatalog() {
     if (unique.length > 0) {
       videos = unique;
       lastUpdated = Date.now();
-
-      console.log(
-        `Catalog refreshed: ${videos.length} videos; ` +
-        `${videos.filter(v => v.thumbnail).length} have thumbnails`
-      );
     } else if (failures.length) {
       lastError = failures.join(" | ");
     } else {
@@ -231,7 +260,6 @@ async function refreshCatalog() {
 
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Media Vault API listening on port ${PORT}`);
-
   refreshCatalog().catch(console.error);
 
   setInterval(() => {
