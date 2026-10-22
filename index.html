@@ -148,7 +148,8 @@
   </div>
 
   <script>
-        const adController = window.Adsgram ? window.Adsgram.init({ blockId: "reward-55423" }) : null;
+    // Initialize Adsgram controller once globally with correct format
+    const adController = window.Adsgram ? window.Adsgram.init({ blockId: "reward-55423" }) : null;
     const API_URL = "https://media-vault-backend-r56c.onrender.com";
     const catalog = document.getElementById("catalog");
     const searchInput = document.getElementById("searchInput");
@@ -158,7 +159,6 @@
     let allVideos = [];
     let isLoading = false;
 
-    // Telegram Mini App setup is optional, so the page also works in a regular browser.
     try {
       const tg = window.Telegram && window.Telegram.WebApp;
       if (tg) { tg.ready(); tg.expand(); }
@@ -231,7 +231,7 @@
 
       catalog.replaceChildren();
       const fragment = document.createDocumentFragment();
-      filtered.forEach((video, index) => {
+      filtered.forEach((video) => {
         const card = document.createElement("article");
         card.className = "card";
 
@@ -273,23 +273,11 @@
         watch.className = "watch-btn";
         watch.type = "button";
         watch.textContent = "▶  WATCH VIDEO";
-watch.addEventListener("click", () => {
-  // Convert ID to string explicitly
-  const blockId = "reward-55423"; 
+        
+        watch.addEventListener("click", () => {
+          openDestination(video.destination);
+        });
 
-  // Initialize Adsgram controller
-  const AdController = window.Adsgram.init({ blockId: blockId });
-
-  AdController.show()
-    .then((result) => {
-      // Ad watched completely! Open video destination
-      openDestination(video.destination);
-    })
-    .catch((error) => {
-      console.log("Ad skipped or failed:", error);
-      alert("Please watch the full ad to unlock this video!");
-    });
-});
         body.append(title, watch);
         card.append(thumbWrap, body);
         fragment.append(card);
@@ -298,39 +286,36 @@ watch.addEventListener("click", () => {
     }
 
     async function openDestination(destination) {
-        const url = safeHttpUrl(destination);
-        if (!url) {
-            showState("!", "Video link unavailable", "This catalog entry does not have a valid destination link.");
-            return;
-        }
+      const url = safeHttpUrl(destination);
+      if (!url) {
+        showState("!", "Video link unavailable", "This catalog entry does not have a valid destination link.");
+        return;
+      }
 
-        // If Adsgram is not available or blocked, open link directly
-        if (!adController) {
-            openUrlSafe(url);
-            return;
-        }
+      if (!adController) {
+        openUrlSafe(url);
+        return;
+      }
 
-        try {
-            // Trigger Adsgram rewarded ad before opening video
-            await adController.show();
-            openUrlSafe(url);
-        } catch (err) {
-            console.log("Ad skipped or failed", err);
-            // Optional: still open video even if ad is skipped/closed
-            openUrlSafe(url);
-        }
+      try {
+        await adController.show();
+        openUrlSafe(url);
+      } catch (err) {
+        console.log("Ad skipped or failed", err);
+        openUrlSafe(url);
+      }
     }
 
-    // Helper to safely open link across Telegram and regular browsers
     function openUrlSafe(url) {
-        try {
-            const tg = window.Telegram && window.Telegram.WebApp;
-            if (tg && typeof tg.openLink === "function") tg.openLink(url);
-            else window.open(url, "_blank", "noopener,noreferrer");
-        } catch (_) {
-            window.open(url, "_blank", "noopener,noreferrer");
-        }
+      try {
+        const tg = window.Telegram && window.Telegram.WebApp;
+        if (tg && typeof tg.openLink === "function") tg.openLink(url);
+        else window.open(url, "_blank", "noopener,noreferrer");
+      } catch (_) {
+        window.open(url, "_blank", "noopener,noreferrer");
+      }
     }
+
     async function loadCatalog() {
       if (isLoading) return;
       isLoading = true;
@@ -339,8 +324,6 @@ watch.addEventListener("click", () => {
       catalogStatus.textContent = "Refreshing catalog…";
       try {
         const data = await fetchWithTimeout(API_URL + "/api/videos");
-        // The backend currently returns { videos: [...], lastUpdated, refreshing }.
-        // Accept a bare array too, for compatibility with older deployments.
         const list = Array.isArray(data) ? data : (Array.isArray(data && data.videos) ? data.videos : []);
         allVideos = list.map(normalizeVideo).filter(Boolean);
         catalogStatus.textContent = "Catalog connected";
@@ -368,20 +351,5 @@ watch.addEventListener("click", () => {
     });
     loadCatalog();
   </script>
-  <script>
-  // Replace YOUR_UNIT_ID with the exact Unit ID you got from Adsgram
-  const AdController = window.Adsgram.init({ blockId: "YOUR_UNIT_ID" });
-
-  function showAd() {
-    AdController.show()
-      .then((result) => {
-        alert("Thank you! Unlocking content...");
-        // Code to open your video goes here
-      })
-      .catch((error) => {
-        alert("Please watch the full ad to continue.");
-      });
-  }
-</script>
 </body>
 </html>
