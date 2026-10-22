@@ -72,7 +72,7 @@ function normalize(item, source) {
   };
 }
 
-// --- TELEGRAM VIDEOS ENDPOINT (Strict file-existence check to remove deleted posts) ---
+// --- TELEGRAM VIDEOS ENDPOINT ---
 app.get("/api/telegram-videos", async (_req, res) => {
   try {
     if (!BOT_TOKEN || !CHANNEL_ID) {
@@ -82,7 +82,7 @@ app.get("/api/telegram-videos", async (_req, res) => {
     const response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getUpdates?allowed_updates=["channel_post","message"]`);
     const data = await response.json();
 
-    if (!data.ok || !Array.isArray(data.result)) {
+    if (!data.ok || !Array.isArray(data.result) || data.result.length === 0) {
       return res.json({ videos: [] });
     }
 
@@ -93,6 +93,7 @@ app.get("/api/telegram-videos", async (_req, res) => {
       const update = data.result[i];
       const message = update.channel_post || update.message;
 
+      // Ensure message exists, belongs to your channel, and actually contains a video
       if (message && message.video && String(message.chat.id) === String(CHANNEL_ID)) {
         const fileId = message.video.file_id;
 
@@ -103,6 +104,7 @@ app.get("/api/telegram-videos", async (_req, res) => {
           const fileRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getFile?file_id=${fileId}`);
           const fileData = await fileRes.json();
 
+          // If the file was deleted from Telegram, skip it immediately!
           if (!fileData.ok || !fileData.result || !fileData.result.file_path) {
             continue;
           }
@@ -134,6 +136,10 @@ app.get("/api/telegram-videos", async (_req, res) => {
         }
       }
     }
+
+    // Automatically clear old Telegram update offsets so deleted posts stop lingering
+    const highestUpdateId = data.result[data.result.length - 1].update_id;
+    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getUpdates?offset=${highestUpdateId + 1}`);
 
     res.json({ videos: tgVideos });
   } catch (err) {
