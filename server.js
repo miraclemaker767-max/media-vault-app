@@ -1,6 +1,5 @@
 const express = require("express");
 const cors = require("cors");
-const fetch = require("node-fetch");
 
 const app = express();
 app.use(cors());
@@ -25,7 +24,6 @@ function normalize(item, source) {
 
   const title = firstString(item.title, item.name, item.label);
   
-  // Robust Eporner thumbnail extraction
   const thumbs = item.thumbs || item.thumbnail_urls;
   const firstThumb = Array.isArray(thumbs) ? thumbs[0] : (thumbs && typeof thumbs === 'object' ? Object.values(thumbs)[0] : null);
 
@@ -91,7 +89,6 @@ app.get("/api/telegram-videos", async (_req, res) => {
     const tgVideos = [];
     const processedFileIds = new Set();
 
-    // Iterate backwards through updates to check the latest first
     for (let i = data.result.length - 1; i >= 0; i--) {
       const update = data.result[i];
       const message = update.channel_post || update.message;
@@ -102,12 +99,10 @@ app.get("/api/telegram-videos", async (_req, res) => {
         if (processedFileIds.has(fileId)) continue;
         processedFileIds.add(fileId);
 
-        // Strictly verify if the file still exists on Telegram servers
         try {
           const fileRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getFile?file_id=${fileId}`);
           const fileData = await fileRes.json();
 
-          // If the file was deleted from Telegram, skip it entirely!
           if (!fileData.ok || !fileData.result || !fileData.result.file_path) {
             continue;
           }
@@ -116,7 +111,6 @@ app.get("/api/telegram-videos", async (_req, res) => {
           const caption = message.caption || "Private VIP Video";
           let thumbnailUrl = "";
 
-          // Fetch auto-generated thumbnail if present
           if (message.video.thumbnail || message.video.thumb) {
             const thumbObj = message.video.thumbnail || message.video.thumb;
             const thumbRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getFile?file_id=${thumbObj.file_id}`);
@@ -136,7 +130,6 @@ app.get("/api/telegram-videos", async (_req, res) => {
             source: "Telegram Private Vault"
           });
         } catch (err) {
-          // Skip if network error occurs checking this specific file
           continue;
         }
       }
@@ -152,7 +145,6 @@ app.get("/api/telegram-videos", async (_req, res) => {
 // --- STANDARD EPORNER / WEB VIDEOS ENDPOINT ---
 app.get("/api/videos", async (_req, res) => {
   try {
-    // Replace with your external video provider API or catalog source
     const response = await fetch("https://www.eporner.com/api/v2/video/search/?query=hd&per_page=30&format=json");
     const data = await response.json();
     
