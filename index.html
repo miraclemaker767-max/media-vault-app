@@ -307,13 +307,8 @@
     }
 
     function openUrlSafe(url) {
-      try {
-        const tg = window.Telegram && window.Telegram.WebApp;
-        if (tg && typeof tg.openLink === "function") tg.openLink(url);
-        else window.open(url, "_blank", "noopener,noreferrer");
-      } catch (_) {
-        window.open(url, "_blank", "noopener,noreferrer");
-      }
+      // Open directly in a new tab/window without the Telegram confirmation prompt
+      window.open(url, "_blank", "noopener,noreferrer");
     }
 
     async function loadCatalog() {
