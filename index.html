@@ -313,8 +313,7 @@
       catalog.append(fragment);
     }
 
-    // --- REQUIRE 1 AD BEFORE WATCHING ---
-    async function handleWatchClick(video) {
+async function handleWatchClick(video) {
       const url = safeHttpUrl(video.destination);
       if (!url) {
         alert("Destination URL is invalid!");
@@ -323,7 +322,7 @@
 
       if (adController) {
         try {
-          // Play just 1 ad
+          // Wait for the single ad to finish completely
           await adController.show();
         } catch (err) {
           console.log("Ad skipped or failed:", err);
@@ -332,15 +331,13 @@
         }
       }
 
-      // If it's a private Telegram video, play inside the Mini App modal player
-      if (video.isManual) {
+      // Open the video immediately right after the ad finishes
+      if (video.isManual || video.source === "Telegram Private Vault") {
         openInAppVideo(video.title, url);
       } else {
         window.open(url, "_blank", "noopener,noreferrer");
       }
     }
-
-    // --- IN-APP PLAYER CONTROLLER ---
     function openInAppVideo(title, videoUrl) {
       const modal = document.getElementById("playerModal");
       const playerBody = document.getElementById("playerBody");
