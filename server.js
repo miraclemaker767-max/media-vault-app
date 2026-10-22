@@ -25,7 +25,7 @@ app.get("/health", (_req, res) => {
   res.status(200).json({ status: "ok" });
 });
 
-// --- TELEGRAM PRIVATE CHANNEL VIDEOS ENDPOINT ---
+// --- TELEGRAM PRIVATE CHANNEL VIDEOS ENDPOINT WITH AUTO-THUMBNAILS ---
 app.get("/api/telegram-videos", async (_req, res) => {
   try {
     if (!BOT_TOKEN) {
@@ -43,38 +43,52 @@ app.get("/api/telegram-videos", async (_req, res) => {
 
     const tgVideos = [];
 
-   for (const update of data.result) {
-  const message = update.channel_post || update.message;
-  if (message && message.video && String(message.chat.id) === String(CHANNEL_ID)) {
-    const fileId = message.video.file_id;
-    const caption = message.caption || "Private VIP Video";
+    for (const update of data.result) {
+      const message = update.channel_post || update.message;
+      if (message && message.video && String(message.chat.id) === String(CHANNEL_ID)) {
+        const fileId = message.video.file_id;
+        const caption = message.caption || "Private VIP Video";
+        let thumbnailUrl = "";
 
-    // Attempt to verify file existence on Telegram
-    const fileRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getFile?file_id=${fileId}`);
-    const fileData = await fileRes.json();
+        // 1. Fetch Auto-Generated Video Thumbnail from Telegram
+        if (message.video.thumbnail || message.video.thumb) {
+          const thumbObj = message.video.thumbnail || message.video.thumb;
+          try {
+            const thumbRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getFile?file_id=${thumbObj.file_id}`);
+            const thumbData = await thumbRes.json();
+            if (thumbData.ok && thumbData.result.file_path) {
+              thumbnailUrl = `https://api.telegram.org/file/bot${BOT_TOKEN}/${thumbData.result.file_path}`;
+            }
+          } catch (e) {
+            console.log("Could not fetch thumbnail:", e);
+          }
+        }
 
-    // ONLY add the video if Telegram confirms the file still exists!
-    if (fileData.ok && fileData.result && fileData.result.file_path) {
-      const directUrl = `https://api.telegram.org/file/bot${BOT_TOKEN}/${fileData.result.file_path}`;
-      tgVideos.push({
-        id: fileId,
-        title: caption,
-        thumbnail: "",
-        watchUrl: directUrl,
-        targetUrl: directUrl,
-        isManual: true,
-        source: "Telegram Private Vault"
-      });
+        // 2. Fetch Direct Stream URL for Video
+        const fileRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getFile?file_id=${fileId}`);
+        const fileData = await fileRes.json();
+
+        if (fileData.ok && fileData.result && fileData.result.file_path) {
+          const directUrl = `https://api.telegram.org/file/bot${BOT_TOKEN}/${fileData.result.file_path}`;
+          tgVideos.push({
+            id: fileId,
+            title: caption,
+            thumbnail: thumbnailUrl, // Auto-extracted video frame thumbnail!
+            watchUrl: directUrl,
+            targetUrl: directUrl,
+            isManual: true,
+            source: "Telegram Private Vault"
+          });
+        }
+      }
     }
-  }
-}
+
     res.json({ videos: tgVideos.reverse() });
   } catch (err) {
     console.error("Telegram fetch error:", err);
     res.status(500).json({ error: "Server error fetching Telegram videos" });
   }
 });
-
 app.get("/api/videos", (_req, res) => {
   res.set("Cache-Control", "no-store");
 
