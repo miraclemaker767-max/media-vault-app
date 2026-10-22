@@ -320,9 +320,9 @@ async function handleWatchClick(video) {
         return;
       }
 
+      // 1. Show the single ad
       if (adController) {
         try {
-          // Wait for the single ad to finish completely
           await adController.show();
         } catch (err) {
           console.log("Ad skipped or failed:", err);
@@ -331,11 +331,19 @@ async function handleWatchClick(video) {
         }
       }
 
-      // Open the video immediately right after the ad finishes
-      if (video.isManual || video.source === "Telegram Private Vault") {
+      // 2. Check video type and open accordingly
+      const isTelegramVideo = video.isManual || video.source === "Telegram Private Vault" || url.includes("telegram.org");
+
+      if (isTelegramVideo) {
+        // Runs inside the Mini App video player modal
         openInAppVideo(video.title, url);
       } else {
-        window.open(url, "_blank", "noopener,noreferrer");
+        // External Web / Eporner links: Use Telegram WebApp API to open safely
+        if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.openLink) {
+          window.Telegram.WebApp.openLink(url);
+        } else {
+          window.open(url, "_blank", "noopener,noreferrer");
+        }
       }
     }
     function openInAppVideo(title, videoUrl) {
