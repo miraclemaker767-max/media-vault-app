@@ -6,6 +6,7 @@
   <meta name="theme-color" content="#09090d">
   <title>VIP Content Vault</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://sad.adsgram.ai/js/sad.min.js"></script>
   <style>
     :root {
       color-scheme: dark;
@@ -272,7 +273,21 @@
         watch.className = "watch-btn";
         watch.type = "button";
         watch.textContent = "▶  WATCH VIDEO";
-        watch.addEventListener("click", () => openDestination(video.destination));
+        watch.addEventListener("click", () => {
+  // Initialize Adsgram (replace YOUR_UNIT_ID with your actual Unit ID)
+  const AdController = window.Adsgram.init({ blockId: "55423" });
+
+  AdController.show()
+    .then((result) => {
+      // Ad watched successfully! Now open the video destination
+      openDestination(video.destination);
+    })
+    .catch((error) => {
+      // Ad closed early or failed
+      console.log("Ad skipped or failed", error);
+      alert("Please watch the full ad to unlock this video!");
+    });
+});
         body.append(title, watch);
         card.append(thumbWrap, body);
         fragment.append(card);
@@ -351,5 +366,20 @@
     });
     loadCatalog();
   </script>
+  <script>
+  // Replace YOUR_UNIT_ID with the exact Unit ID you got from Adsgram
+  const AdController = window.Adsgram.init({ blockId: "YOUR_UNIT_ID" });
+
+  function showAd() {
+    AdController.show()
+      .then((result) => {
+        alert("Thank you! Unlocking content...");
+        // Code to open your video goes here
+      })
+      .catch((error) => {
+        alert("Please watch the full ad to continue.");
+      });
+  }
+</script>
 </body>
 </html>
