@@ -12,66 +12,99 @@ app.use(express.json());
 let videos = [];
 let lastUpdated = null;
 let refreshing = false;
+let lastError = null;
 
-app.get("/", (req, res) =>
-  res.json({ status: "Media Vault API is running" })
-);
+app.get("/", (_req, res) => {
+  res.json({ status: "Media Vault API is running" });
+});
 
-app.get("/health", (req, res) =>
-  res.status(200).json({ status: "ok" })
-);
+app.get("/health", (_req, res) => {
+  res.status(200).json({ status: "ok" });
+});
 
-app.get("/api/videos", async (req, res) => {
+app.get("/api/videos", (_req, res) => {
   res.set("Cache-Control", "no-store");
 
-  // Never make visitors wait for a third-party feed.
   if (!lastUpdated || Date.now() - lastUpdated > CACHE_MS) {
     refreshCatalog().catch(console.error);
   }
 
-  res.json({ videos, lastUpdated });
+  res.json({ videos, lastUpdated, refreshing });
 });
 
-app.get("/api/catalog-status", (req, res) => {
+app.get("/api/catalog-status", (_req, res) => {
   res.json({
     status: "running",
     videoCount: videos.length,
+    videosWithThumbnail: videos.filter(v => Boolean(v.thumbnail)).length,
+    videosWithWatchUrl: videos.filter(v => Boolean(v.watchUrl)).length,
     lastUpdated,
-    refreshing
+    refreshing,
+    lastError
   });
 });
 
-function normalize(item, source) {
-  const thumbnail =
-    item.thumbnail ||
-    item.thumb ||
-    item.default_thumb?.src ||
-    item.thumbs?.[0]?.src ||
-    item.image ||
-    "";
+function firstString(...values) {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
 
-  const watchUrl =
-    item.watchUrl ||
-    item.targetUrl ||
-    item.url ||
-    item.link ||
-    "";
-
-  if (!item.title || !thumbnail || !watchUrl) return null;
-
-  // Only accept secure web links.
-  for (const value of [thumbnail, watchUrl]) {
-    try {
-      if (new URL(value).protocol !== "https:") return null;
-    } catch {
-      return null;
+    if (value && typeof value === "object" &&
+        typeof value.src === "string" && value.src.trim()) {
+      return value.src.trim();
     }
   }
+  return "";
+}
+
+function normalize(item, source) {
+  if (!item || typeof item !== "object") return null;
+
+  const title = firstString(item.title, item.name, item.label);
+  const thumbs = item.thumbs;
+  const firstThumb = Array.isArray(thumbs) ? thumbs[0] : null;
+
+  const thumbnail = firstString(
+    item.thumbnail,
+    item.thumb,
+    item.default_thumb,
+    item.default_thumb?.src,
+    firstThumb,
+    firstThumb?.src,
+    thumbs?.src,
+    item.image,
+    item.poster,
+    item.preview,
+    item.preview_url
+  );
+
+  const watchUrl = firstString(
+    item.watchUrl,
+    item.targetUrl,
+    item.url,
+    item.link,
+    item.embedUrl,
+    item.embed_url
+  );
+
+  try {
+    if (!title || new URL(watchUrl).protocol !== "https:") return null;
+  } catch {
+    return null;
+  }
+
+  let validThumbnail = "";
+  try {
+    if (new URL(thumbnail).protocol === "https:") {
+      validThumbnail = thumbnail;
+    }
+  } catch {}
 
   return {
     id: String(item.id || watchUrl),
-    title: String(item.title),
-    thumbnail,
+    title,
+    thumbnail: validThumbnail,
     watchUrl,
     targetUrl: watchUrl,
     source
@@ -83,7 +116,10 @@ async function fetchEporner() {
     "https://www.eporner.com/api/v2/video/search/"
   );
 
-  url.searchParams.set("query", process.env.EPORNER_QUERY || "trending");
+  url.searchParams.set(
+    "query",
+    process.env.EPORNER_QUERY || "trending"
+  );
   url.searchParams.set("per_page", "30");
   url.searchParams.set("format", "json");
 
@@ -96,6 +132,7 @@ async function fetchEporner() {
   }
 
   const data = await response.json();
+
   const items = Array.isArray(data.videos)
     ? data.videos
     : Array.isArray(data.videos?.video)
@@ -119,6 +156,7 @@ async function fetchJsonFeed(feedUrl) {
   }
 
   const data = await response.json();
+
   const items = Array.isArray(data)
     ? data
     : Array.isArray(data.videos)
@@ -126,6 +164,7 @@ async function fetchJsonFeed(feedUrl) {
       : [];
 
   let source = "Additional source";
+
   try {
     source = new URL(feedUrl).hostname;
   } catch {}
@@ -137,12 +176,15 @@ async function fetchJsonFeed(feedUrl) {
 
 async function refreshCatalog() {
   if (refreshing) return;
+
   refreshing = true;
+  lastError = null;
 
   try {
-    const feeds = (
-      process.env.CATALOG_FEED_URLS || ""
-    ).split(",").map(s => s.trim()).filter(Boolean);
+    const feeds = (process.env.CATALOG_FEED_URLS || "")
+      .split(",")
+      .map(value => value.trim())
+      .filter(Boolean);
 
     const results = await Promise.allSettled([
       fetchEporner(),
@@ -153,6 +195,10 @@ async function refreshCatalog() {
       .filter(result => result.status === "fulfilled")
       .flatMap(result => result.value);
 
+    const failures = results
+      .filter(result => result.status === "rejected")
+      .map(result => result.reason?.message || "Feed failed");
+
     const unique = [
       ...new Map(collected.map(v => [v.watchUrl, v])).values()
     ].slice(0, 60);
@@ -160,12 +206,24 @@ async function refreshCatalog() {
     if (unique.length > 0) {
       videos = unique;
       lastUpdated = Date.now();
-      console.log(`Catalog refreshed: ${videos.length} videos`);
+
+      console.log(
+        `Catalog refreshed: ${videos.length} videos; ` +
+        `${videos.filter(v => v.thumbnail).length} have thumbnails`
+      );
+    } else if (failures.length) {
+      lastError = failures.join(" | ");
     } else {
-      console.log("No valid videos received; keeping existing cache.");
+      lastError = "No usable videos returned by configured feeds";
+    }
+
+    if (failures.length) {
+      lastError = failures.join(" | ");
+      console.warn("Some feeds failed:", lastError);
     }
   } catch (error) {
-    console.error("Catalog refresh failed:", error.message);
+    lastError = error.message || "Catalog refresh failed";
+    console.error(lastError);
   } finally {
     refreshing = false;
   }
@@ -173,7 +231,9 @@ async function refreshCatalog() {
 
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Media Vault API listening on port ${PORT}`);
+
   refreshCatalog().catch(console.error);
+
   setInterval(() => {
     refreshCatalog().catch(console.error);
   }, CACHE_MS);
