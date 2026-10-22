@@ -293,16 +293,20 @@
       }
 
       if (!adController) {
-        openUrlSafe(url);
+        window.open(url, "_blank", "noopener,noreferrer");
         return;
       }
 
       try {
+        // Wait for the user to finish watching the ad completely
         await adController.show();
-        openUrlSafe(url);
+        
+        // Directly open the video URL right after the ad resolves successfully
+        window.open(url, "_blank", "noopener,noreferrer");
       } catch (err) {
         console.log("Ad skipped or failed", err);
-        openUrlSafe(url);
+        // Even if the ad is skipped or closed, still open the video link as a fallback
+        window.open(url, "_blank", "noopener,noreferrer");
       }
     }
 
