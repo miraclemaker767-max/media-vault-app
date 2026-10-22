@@ -43,30 +43,31 @@ app.get("/api/telegram-videos", async (_req, res) => {
 
     const tgVideos = [];
 
-    for (const update of data.result) {
-      const message = update.channel_post || update.message;
-      if (message && message.video && String(message.chat.id) === String(CHANNEL_ID)) {
-        const fileId = message.video.file_id;
-        const caption = message.caption || "Private VIP Video";
+   for (const update of data.result) {
+  const message = update.channel_post || update.message;
+  if (message && message.video && String(message.chat.id) === String(CHANNEL_ID)) {
+    const fileId = message.video.file_id;
+    const caption = message.caption || "Private VIP Video";
 
-        const fileRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getFile?file_id=${fileId}`);
-        const fileData = await fileRes.json();
+    // Attempt to verify file existence on Telegram
+    const fileRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getFile?file_id=${fileId}`);
+    const fileData = await fileRes.json();
 
-        if (fileData.ok && fileData.result.file_path) {
-          const directUrl = `https://api.telegram.org/file/bot${BOT_TOKEN}/${fileData.result.file_path}`;
-          tgVideos.push({
-            id: fileId,
-            title: caption,
-            thumbnail: "",
-            watchUrl: directUrl,
-            targetUrl: directUrl,
-            isManual: true,
-            source: "Telegram Private Vault"
-          });
-        }
-      }
+    // ONLY add the video if Telegram confirms the file still exists!
+    if (fileData.ok && fileData.result && fileData.result.file_path) {
+      const directUrl = `https://api.telegram.org/file/bot${BOT_TOKEN}/${fileData.result.file_path}`;
+      tgVideos.push({
+        id: fileId,
+        title: caption,
+        thumbnail: "",
+        watchUrl: directUrl,
+        targetUrl: directUrl,
+        isManual: true,
+        source: "Telegram Private Vault"
+      });
     }
-
+  }
+}
     res.json({ videos: tgVideos.reverse() });
   } catch (err) {
     console.error("Telegram fetch error:", err);
