@@ -8,6 +8,11 @@ app.use(express.json());
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const CHANNEL_ID = process.env.CHANNEL_ID;
 
+// --- HEALTH CHECK ENDPOINT (For Keep-Alive Pings) ---
+app.get("/health", (_req, res) => {
+  res.status(200).send("OK");
+});
+
 // Helper to find the first valid non-empty string
 function firstString(...args) {
   for (const arg of args) {
