@@ -72,6 +72,37 @@ function normalize(item, source) {
   };
 }
 
+// --- TELEGRAM STARS PAYMENT INVOICE ENDPOINT ---
+app.get("/api/create-invoice", async (_req, res) => {
+  try {
+    if (!BOT_TOKEN) {
+      return res.status(400).json({ error: "Bot token not configured on server" });
+    }
+
+    const response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/createInvoiceLink`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: "VIP Vault Pass",
+        description: "Unlock lifetime ad-free access to private VIP channel videos",
+        payload: "vip_access_pass",
+        currency: "XTR", // Official currency code for Telegram Stars
+        prices: [{ label: "VIP Pass", amount: 100 }] // Price: 100 Stars
+      })
+    });
+
+    const data = await response.json();
+    if (data.ok && data.result) {
+      res.json({ invoiceLink: data.result });
+    } else {
+      res.status(400).json({ error: "Failed to create invoice link", details: data });
+    }
+  } catch (err) {
+    console.error("Invoice creation error:", err);
+    res.status(500).json({ error: "Server error creating invoice" });
+  }
+});
+
 // --- TELEGRAM VIDEOS ENDPOINT ---
 app.get("/api/telegram-videos", async (_req, res) => {
   try {
