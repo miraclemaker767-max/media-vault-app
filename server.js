@@ -45,7 +45,7 @@ app.post('/telegram-webhook', async (req, res) => {
         file_id: media.file_id,
         title: post.caption || 'VIP Private Video',
         thumbnail: '',
-        destination: `https://t.me/PrivateVIPVault/${post.message_id}`,
+        destination: `https://t.me/3908660101/${post.message_id}`,
         isManual: true,
         source: 'Telegram Private Vault',
         date: post.date || Date.now()
