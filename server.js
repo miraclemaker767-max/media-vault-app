@@ -101,14 +101,20 @@ app.get('/api/videos', async (req, res) => {
   try {
     const response = await axios.get('https://www.eporner.com/api/v2/video/search/?query=hd&per_page=20&format=json');
     
-    const epornerVideos = response.data.videos.map(video => ({
-      id: video.id,
-      title: video.title,
-      destination: video.url,
-      thumbnail: video.default_thumb.src.startsWith('http') ? video.default_thumb.src : `https:${video.default_thumb.src}`,
-      duration: video.duration,
-      isManual: false
-    }));
+    const epornerVideos = response.data.videos.map(video => {
+      let thumb = video.default_thumb.src || '';
+      if (thumb.startsWith('//')) thumb = `https:${thumb}`;
+      else if (thumb.startsWith('http://')) thumb = thumb.replace('http://', 'https://');
+
+      return {
+        id: video.id,
+        title: video.title,
+        destination: video.url,
+        thumbnail: thumb,
+        duration: video.duration,
+        isManual: false
+      };
+    });
 
     res.json({ success: true, videos: epornerVideos });
   } catch (error) {
