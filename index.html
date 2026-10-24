@@ -344,8 +344,7 @@
       }
     }
 
-    // --- IN-APP PLAYER WITH FULL VIDEO CONTROLS ---
-    function openInAppVideo(title, videoUrl) {
+   function openInAppVideo(title, watchUrl, targetUrl) {
       const modal = document.getElementById("playerModal");
       const playerBody = document.getElementById("playerBody");
       const titleEl = document.getElementById("playerVideoTitle");
@@ -354,16 +353,30 @@
       playerBody.replaceChildren();
 
       const videoElement = document.createElement("video");
-      videoElement.src = videoUrl;
       videoElement.controls = true;
       videoElement.autoplay = true;
       videoElement.playsInline = true;
-      videoElement.controlsList = "nodownload";
+      videoElement.preload = "auto";
       videoElement.style.width = "100%";
       videoElement.style.height = "100%";
-      
+
+      const sourceElement = document.createElement("source");
+      sourceElement.src = watchUrl;
+      sourceElement.type = "video/mp4";
+      videoElement.append(sourceElement);
+
+      videoElement.addEventListener("error", () => {
+        playerBody.innerHTML = `
+          <div style="padding:24px; text-align:center; color:#fff;">
+            <p style="margin-bottom:16px; font-size:13px; color:#a5a3b2;">Direct playback unavailable in embedded browser.</p>
+            <a href="${targetUrl}" target="_blank" style="display:inline-block; padding:12px 20px; background:linear-gradient(135deg,#e7c477,#b98b3e); color:#111; font-weight:800; border-radius:10px; text-decoration:none;">OPEN IN TELEGRAM CHANNEL</a>
+          </div>
+        `;
+      });
+
       playerBody.append(videoElement);
       modal.classList.add("open");
+      videoElement.play().catch(() => {});
     }
 
     function closeInAppVideo() {
