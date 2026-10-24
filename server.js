@@ -1,146 +1,164 @@
 const express = require("express");
 const cors = require("cors");
-const fetch = (...args) => import("node-fetch").then(({ default: fetch }) => fetch(...args));
 
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use(express.static(__dirname));
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
-let telegramVault = [];
-let epornerCache = [];
-let lastFetch = 0;
+const CHANNEL_ID = process.env.CHANNEL_ID;
 
-app.get("/health", (_req, res) => res.status(200).send("OK"));
-
-// --- FETCH EPORNER CATALOG ---
-async function fetchEporner() {
-  const now = Date.now();
-  if (epornerCache.length && now - lastFetch < 1000 * 60 * 15) return epornerCache;
-
-  try {
-    const res = await fetch("https://www.eporner.com/api/v2/video/search/?query=doggy+style&per_page=20&format=json");
-    const data = await res.json();
-    if (data && data.videos) {
-      epornerCache = data.videos.map(v => ({
-        id: String(v.id),
-        title: v.title,
-        thumbnail: v.default_thumb?.src || v.thumbs?.[0]?.src || "",
-        watchUrl: v.embed || v.url,
-        targetUrl: v.url,
-        source: "Eporner"
-      }));
-      lastFetch = now;
+// Helper to find the first valid non-empty string
+function firstString(...args) {
+  for (const arg of args) {
+    if (typeof arg === "string" && arg.trim() !== "") {
+      return arg.trim();
     }
-  } catch (err) {
-    console.error("Eporner fetch error:", err);
   }
-  return epornerCache;
+  return "";
 }
 
-// --- TELEGRAM WEBHOOK ---
-app.post("/telegram-webhook", async (req, res) => {
-  const update = req.body;
+// Normalize Eporner / Web Catalog items & Thumbnails
+function normalize(item, source) {
+  if (!item || typeof item !== "object") return null;
+
+  const title = firstString(item.title, item.name, item.label);
+  
+  const thumbs = item.thumbs || item.thumbnail_urls;
+  const firstThumb = Array.isArray(thumbs) ? thumbs[0] : (thumbs && typeof thumbs === 'object' ? Object.values(thumbs)[0] : null);
+
+  const thumbnail = firstString(
+    item.thumbnail,
+    item.thumb,
+    item.default_thumb,
+    item.default_thumb?.src,
+    typeof firstThumb === 'string' ? firstThumb : (firstThumb?.src || firstThumb?.url),
+    item.image,
+    item.poster,
+    item.preview,
+    item.preview_url
+  );
+
+  const watchUrl = firstString(
+    item.watchUrl,
+    item.targetUrl,
+    item.url,
+    item.link,
+    item.embedUrl,
+    item.embed_url
+  );
 
   try {
-    const post = update.channel_post || update.message;
+    if (!title || !watchUrl || new URL(watchUrl).protocol !== "https:") return null;
+  } catch {
+    return null;
+  }
 
-    if (post && post.text && post.text.startsWith("/delete")) {
-      const parts = post.text.trim().split(/\s+/);
-      const targetId = parts[1];
-      if (targetId) {
-        telegramVault = telegramVault.filter(
-          v => String(v.message_id) !== String(targetId) && v.id !== String(targetId)
-        );
-      }
-      return res.sendStatus(200);
+  let validThumbnail = "";
+  try {
+    if (thumbnail && new URL(thumbnail).protocol === "https:") {
+      validThumbnail = thumbnail;
+    }
+  } catch {}
+
+  return {
+    id: String(item.id || watchUrl),
+    title,
+    thumbnail: validThumbnail,
+    watchUrl,
+    targetUrl: watchUrl,
+    isManual: false,
+    source
+  };
+}
+
+// --- TELEGRAM VIDEOS ENDPOINT (Strict file-existence check to remove deleted posts) ---
+app.get("/api/telegram-videos", async (_req, res) => {
+  try {
+    if (!BOT_TOKEN || !CHANNEL_ID) {
+      return res.json({ videos: [] });
     }
 
-    if (post && (post.video || post.document)) {
-      const media = post.video || post.document;
-      const fileId = media.file_id;
+    const response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getUpdates?allowed_updates=["channel_post","message"]`);
+    const data = await response.json();
 
-      const rawChatId = String(post.chat.id).replace("-100", "");
-      const privateLink = `https://t.me/c/${rawChatId}/${post.message_id}`;
+    if (!data.ok || !Array.isArray(data.result)) {
+      return res.json({ videos: [] });
+    }
 
-      let fileDirectUrl = "";
-      if (BOT_TOKEN) {
+    const tgVideos = [];
+    const processedFileIds = new Set();
+
+    for (let i = data.result.length - 1; i >= 0; i--) {
+      const update = data.result[i];
+      const message = update.channel_post || update.message;
+
+      if (message && message.video && String(message.chat.id) === String(CHANNEL_ID)) {
+        const fileId = message.video.file_id;
+
+        if (processedFileIds.has(fileId)) continue;
+        processedFileIds.add(fileId);
+
         try {
           const fileRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getFile?file_id=${fileId}`);
           const fileData = await fileRes.json();
-          if (fileData.ok && fileData.result.file_path) {
-            fileDirectUrl = `https://api.telegram.org/file/bot${BOT_TOKEN}/${fileData.result.file_path}`;
+
+          if (!fileData.ok || !fileData.result || !fileData.result.file_path) {
+            continue;
           }
-        } catch (e) {}
-      }
 
-      let thumbUrl = "";
-      if (BOT_TOKEN && (media.thumbnail || media.thumb)) {
-        try {
-          const thumbObj = media.thumbnail || media.thumb;
-          const thumbRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getFile?file_id=${thumbObj.file_id}`);
-          const thumbData = await thumbRes.json();
-          if (thumbData.ok && thumbData.result.file_path) {
-            thumbUrl = `https://api.telegram.org/file/bot${BOT_TOKEN}/${thumbData.result.file_path}`;
+          const directUrl = `https://api.telegram.org/file/bot${BOT_TOKEN}/${fileData.result.file_path}`;
+          const caption = message.caption || "Private VIP Video";
+          let thumbnailUrl = "";
+
+          if (message.video.thumbnail || message.video.thumb) {
+            const thumbObj = message.video.thumbnail || message.video.thumb;
+            const thumbRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getFile?file_id=${thumbObj.file_id}`);
+            const thumbData = await thumbRes.json();
+            if (thumbData.ok && thumbData.result.file_path) {
+              thumbnailUrl = `https://api.telegram.org/file/bot${BOT_TOKEN}/${thumbData.result.file_path}`;
+            }
           }
-        } catch (e) {}
+
+          tgVideos.push({
+            id: fileId,
+            title: caption,
+            thumbnail: thumbnailUrl,
+            watchUrl: directUrl,
+            targetUrl: directUrl,
+            isManual: true,
+            source: "Telegram Private Vault"
+          });
+        } catch (err) {
+          continue;
+        }
       }
-
-      const videoItem = {
-        id: String(fileId),
-        message_id: post.message_id,
-        title: post.caption || `VIP Video #${post.message_id}`,
-        thumbnail: thumbUrl,
-        watchUrl: fileDirectUrl || privateLink,
-        targetUrl: privateLink,
-        source: "Telegram Private Vault"
-      };
-
-      telegramVault = telegramVault.filter(v => v.id !== videoItem.id && v.message_id !== videoItem.message_id);
-      telegramVault.unshift(videoItem);
     }
+
+    res.json({ videos: tgVideos });
   } catch (err) {
-    console.error("Webhook error:", err);
+    console.error("Telegram fetch error:", err);
+    res.status(500).json({ error: "Server error fetching Telegram videos" });
   }
-
-  res.sendStatus(200);
 });
 
-// --- COMBINED CATALOG ENDPOINT ---
-app.get("/api/telegram-videos", async (_req, res) => {
-  const epornerVideos = await fetchEporner();
-  const combined = [...telegramVault, ...epornerVideos];
-  res.json(combined);
-});
-
-// --- TELEGRAM STARS INVOICE ---
-app.get("/api/create-invoice", async (_req, res) => {
+// --- STANDARD EPORNER / WEB VIDEOS ENDPOINT ---
+app.get("/api/videos", async (_req, res) => {
   try {
-    if (!BOT_TOKEN) return res.status(400).json({ error: "Bot token missing" });
-
-    const response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/createInvoiceLink`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title: "VIP Vault Pass",
-        description: "Lifetime access to private VIP video stream",
-        payload: "vip_access_pass",
-        currency: "XTR",
-        prices: [{ label: "VIP Pass", amount: 100 }]
-      })
-    });
-
+    const response = await fetch("https://www.eporner.com/api/v2/video/search/?query=hd&per_page=30&format=json");
     const data = await response.json();
-    if (data.ok && data.result) {
-      res.json({ invoiceLink: data.result });
-    } else {
-      res.status(400).json({ error: "Invoice creation failed" });
-    }
+    
+    const items = Array.isArray(data.videos) ? data.videos : [];
+    const normalizedVideos = items.map(item => normalize(item, "Eporner")).filter(Boolean);
+
+    res.json({ videos: normalizedVideos });
   } catch (err) {
-    res.status(500).json({ error: "Server error" });
+    console.error("Web catalog fetch error:", err);
+    res.status(500).json({ error: "Failed to fetch catalog" });
   }
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server live on port ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
