@@ -14,13 +14,13 @@ let lastFetch = 0;
 
 app.get("/health", (_req, res) => res.status(200).send("OK"));
 
-// --- FETCH EPORNER CATALOG ---
+// --- FETCH EPORNER CATALOG (Safe Wrapper) ---
 async function fetchEporner() {
   const now = Date.now();
   if (epornerCache.length && now - lastFetch < 1000 * 60 * 15) return epornerCache;
 
   try {
-    const res = await fetch("https://www.eporner.com/api/v2/video/search/?query=doggy+style&per_page=20&format=json");
+    const res = await fetch("https://www.eporner.com/api/v2/video/search/?query=doggy+style&per_page=20&format=json", { timeout: 5000 });
     const data = await res.json();
     if (data && data.videos) {
       epornerCache = data.videos.map(v => ({
@@ -34,7 +34,7 @@ async function fetchEporner() {
       lastFetch = now;
     }
   } catch (err) {
-    console.error("Eporner fetch error:", err);
+    console.error("Eporner fetch error (ignored to preserve app uptime):", err.message);
   }
   return epornerCache;
 }
@@ -107,9 +107,15 @@ app.post("/telegram-webhook", async (req, res) => {
   res.sendStatus(200);
 });
 
-// --- COMBINED CATALOG ENDPOINT ---
+// --- COMBINED CATALOG ENDPOINT (Fault Tolerant) ---
 app.get("/api/telegram-videos", async (_req, res) => {
-  const epornerVideos = await fetchEporner();
+  let epornerVideos = [];
+  try {
+    epornerVideos = await fetchEporner();
+  } catch (e) {
+    epornerVideos = epornerCache; // Fallback to last known cache if API fails
+  }
+
   const combined = [...telegramVault, ...epornerVideos];
   res.json(combined);
 });
