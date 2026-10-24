@@ -15,6 +15,7 @@ let telegramVault = [];
 app.get("/health", (_req, res) => res.status(200).send("OK"));
 
 // --- VIDEO & THUMBNAIL PROXY ROUTE (Fixes CORS & Video Playback) ---
+// --- VIDEO & THUMBNAIL PROXY ROUTE (Stream Piped) ---
 app.get("/api/proxy", async (req, res) => {
   const fileId = req.query.file_id;
   if (!fileId || !BOT_TOKEN) {
@@ -22,7 +23,6 @@ app.get("/api/proxy", async (req, res) => {
   }
 
   try {
-    // 1. Get real file path from Telegram
     const fileRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getFile?file_id=${fileId}`);
     const fileData = await fileRes.json();
 
@@ -32,7 +32,6 @@ app.get("/api/proxy", async (req, res) => {
 
     const fileUrl = `https://api.telegram.org/file/bot${BOT_TOKEN}/${fileData.result.file_path}`;
 
-    // 2. Fetch stream from Telegram with Range headers if requested by video player
     const headers = {};
     if (req.headers.range) {
       headers["Range"] = req.headers.range;
@@ -40,7 +39,6 @@ app.get("/api/proxy", async (req, res) => {
 
     const mediaRes = await fetch(fileUrl, { headers });
 
-    // 3. Forward stream headers to browser
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Headers", "*");
     res.setHeader("Content-Type", mediaRes.headers.get("content-type") || "video/mp4");
@@ -53,14 +51,13 @@ app.get("/api/proxy", async (req, res) => {
     }
     if (mediaRes.headers.get("content-range")) {
       res.setHeader("Content-Range", mediaRes.headers.get("content-range"));
-      res.status(206); // Partial Content for seeking
+      res.status(206);
     } else {
       res.status(mediaRes.status);
     }
 
-    // Pipe stream directly to browser
-    const arrayBuffer = await mediaRes.arrayBuffer();
-    res.send(Buffer.from(arrayBuffer));
+    // Use Node stream piping for reliable video chunking
+    mediaRes.body.pipe(res);
 
   } catch (err) {
     console.error("Proxy error:", err);
