@@ -107,16 +107,20 @@ app.post("/telegram-webhook", async (req, res) => {
   res.sendStatus(200);
 });
 
-// --- COMBINED CATALOG ENDPOINT (Fault Tolerant) ---
+// --- COMBINED CATALOG ENDPOINT (Never Crashes) ---
 app.get("/api/telegram-videos", async (_req, res) => {
   let epornerVideos = [];
   try {
     epornerVideos = await fetchEporner();
   } catch (e) {
-    epornerVideos = epornerCache; // Fallback to last known cache if API fails
+    epornerVideos = epornerCache; 
   }
 
-  const combined = [...telegramVault, ...epornerVideos];
+  // Ensure both are always arrays, even if empty
+  const safeVault = Array.isArray(telegramVault) ? telegramVault : [];
+  const safeEporner = Array.isArray(epornerVideos) ? epornerVideos : [];
+
+  const combined = [...safeVault, ...safeEporner];
   res.json(combined);
 });
 
