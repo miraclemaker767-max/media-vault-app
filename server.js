@@ -5,32 +5,27 @@ const fetch = (...args) => import("node-fetch").then(({ default: fetch }) => fet
 const app = express();
 app.use(cors());
 app.use(express.json());
-
 app.use(express.static(__dirname));
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 
-// In-memory array to store incoming private channel videos
 let telegramVault = [];
 
-// --- HEALTH CHECK ---
 app.get("/health", (_req, res) => res.status(200).send("OK"));
 
-// --- 1. TELEGRAM WEBHOOK ---
+// Webhook listener
 app.post("/telegram-webhook", async (req, res) => {
   const update = req.body;
-  console.log("📥 Incoming Telegram Webhook:", JSON.stringify(update));
 
   try {
     const post = update.channel_post || update.message;
 
-    // Handle delete command (e.g. send "/delete 1234" to your bot or channel)
+    // Handle delete command: /delete [message_id]
     if (post && post.text && post.text.startsWith("/delete")) {
       const parts = post.text.split(" ");
       const targetId = parts[1];
       if (targetId) {
         telegramVault = telegramVault.filter(v => !v.targetUrl.includes(targetId) && v.id !== targetId);
-        console.log(`🗑️ Deleted video message #${targetId} from vault.`);
       }
       return res.sendStatus(200);
     }
@@ -51,12 +46,11 @@ app.post("/telegram-webhook", async (req, res) => {
             directVideoUrl = `https://api.telegram.org/file/bot${BOT_TOKEN}/${fileData.result.file_path}`;
           }
         } catch (e) {
-          console.error("Failed to resolve direct file path:", e);
+          console.error("Error fetching file path:", e);
         }
       }
 
-      // Fallback default VIP thumbnail if Telegram didn't generate one
-      let thumbnailUrl = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=500&auto=format&fit=crop";
+      let thumbnailUrl = "";
       if (BOT_TOKEN && (media.thumbnail || media.thumb)) {
         try {
           const thumbObj = media.thumbnail || media.thumb;
@@ -72,7 +66,7 @@ app.post("/telegram-webhook", async (req, res) => {
         id: String(fileId),
         message_id: post.message_id,
         title: post.caption || "VIP Private Video",
-        thumbnail: thumbnailUrl,
+        thumbnail: thumbnailUrl, // Empty if Telegram did not provide one
         watchUrl: directVideoUrl,
         targetUrl: privateLink,
         isManual: true,
@@ -81,50 +75,19 @@ app.post("/telegram-webhook", async (req, res) => {
 
       telegramVault = telegramVault.filter(v => v.id !== videoItem.id);
       telegramVault.unshift(videoItem);
-
-      console.log(`📹 Added video #${post.message_id} to vault! Total: ${telegramVault.length}`);
     }
   } catch (err) {
-    console.error("Webhook processing error:", err);
+    console.error("Webhook error:", err);
   }
 
   res.sendStatus(200);
 });
 
-// --- 2. GET TELEGRAM VIDEOS ENDPOINT ---
 app.get("/api/telegram-videos", (_req, res) => {
   res.json(telegramVault);
 });
 
-// --- 3. TELEGRAM STARS PAYMENT ---
-app.get("/api/create-invoice", async (_req, res) => {
-  try {
-    if (!BOT_TOKEN) return res.status(400).json({ error: "Bot token not configured" });
-
-    const response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/createInvoiceLink`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title: "VIP Vault Pass",
-        description: "Unlock lifetime ad-free access to private VIP channel videos",
-        payload: "vip_access_pass",
-        currency: "XTR",
-        prices: [{ label: "VIP Pass", amount: 100 }]
-      })
-    });
-
-    const data = await response.json();
-    if (data.ok && data.result) {
-      res.json({ invoiceLink: data.result });
-    } else {
-      res.status(400).json({ error: "Invoice creation failed", details: data });
-    }
-  } catch (err) {
-    res.status(500).json({ error: "Server error" });
-  }
-});
-
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
