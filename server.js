@@ -9,28 +9,25 @@ app.use(express.static(__dirname));
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 
-// In-memory array for private channel videos
 let telegramVault = [];
 
 app.get("/health", (_req, res) => res.status(200).send("OK"));
 
-// --- STREAM PROXY ROUTE (Fixes Expired Telegram Links & CORS) ---
-app.get("/api/stream/:file_id", async (req, res) => {
-  const fileId = req.params.file_id;
-  if (!fileId || !BOT_TOKEN) return res.status(400).send("Invalid parameters");
+// --- DYNAMIC VIDEO STREAM PROXY ---
+app.get("/api/stream", async (req, res) => {
+  const fileId = req.query.file_id;
+  if (!fileId || !BOT_TOKEN) return res.status(400).send("Missing parameters");
 
   try {
-    // 1. Resolve fresh file path from Telegram API
     const fileRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getFile?file_id=${fileId}`);
     const fileData = await fileRes.json();
 
     if (!fileData.ok || !fileData.result.file_path) {
-      return res.status(404).send("File not found on Telegram");
+      return res.status(404).send("File unavailable");
     }
 
     const fileUrl = `https://api.telegram.org/file/bot${BOT_TOKEN}/${fileData.result.file_path}`;
 
-    // 2. Pass Range headers for seeking/buffering
     const headers = {};
     if (req.headers.range) {
       headers["Range"] = req.headers.range;
@@ -38,10 +35,10 @@ app.get("/api/stream/:file_id", async (req, res) => {
 
     const mediaRes = await fetch(fileUrl, { headers });
 
-    // 3. Set streaming headers
     res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Headers", "*");
     res.setHeader("Content-Type", mediaRes.headers.get("content-type") || "video/mp4");
-
+    
     if (mediaRes.headers.get("content-length")) {
       res.setHeader("Content-Length", mediaRes.headers.get("content-length"));
     }
@@ -55,11 +52,10 @@ app.get("/api/stream/:file_id", async (req, res) => {
       res.status(mediaRes.status);
     }
 
-    // Pipe stream directly to browser video player
     mediaRes.body.pipe(res);
   } catch (err) {
-    console.error("Stream proxy error:", err);
-    res.status(500).send("Error streaming video");
+    console.error("Stream error:", err);
+    res.status(500).send("Streaming failed");
   }
 });
 
@@ -70,7 +66,6 @@ app.post("/telegram-webhook", async (req, res) => {
   try {
     const post = update.channel_post || update.message;
 
-    // Handle Deletion Command: /delete [message_id]
     if (post && post.text && post.text.startsWith("/delete")) {
       const parts = post.text.trim().split(/\s+/);
       const targetId = parts[1];
@@ -78,12 +73,10 @@ app.post("/telegram-webhook", async (req, res) => {
         telegramVault = telegramVault.filter(
           v => String(v.message_id) !== String(targetId) && v.id !== String(targetId)
         );
-        console.log(`🗑️ Removed video #${targetId} from vault.`);
       }
       return res.sendStatus(200);
     }
 
-    // Process Incoming Video Post
     if (post && (post.video || post.document)) {
       const media = post.video || post.document;
       const fileId = media.file_id;
@@ -102,36 +95,31 @@ app.post("/telegram-webhook", async (req, res) => {
         thumb_file_id: thumbFileId,
         message_id: post.message_id,
         title: post.caption || `VIP Video #${post.message_id}`,
-        targetUrl: privateLink,
-        isManual: true
+        targetUrl: privateLink
       };
 
       telegramVault = telegramVault.filter(v => v.id !== videoItem.id && v.message_id !== videoItem.message_id);
       telegramVault.unshift(videoItem);
-
-      console.log(`📹 Added video #${post.message_id} to vault!`);
     }
   } catch (err) {
-    console.error("Webhook processing error:", err);
+    console.error("Webhook error:", err);
   }
 
   res.sendStatus(200);
 });
 
-// --- VAULT API ENDPOINT ---
 app.get("/api/telegram-videos", (_req, res) => {
   const host = _req.protocol + "://" + _req.get("host");
 
-  const formattedVault = telegramVault.map(v => ({
+  const formatted = telegramVault.map(v => ({
     ...v,
-    watchUrl: `${host}/api/stream/${v.file_id}`,
-    thumbnail: v.thumb_file_id ? `${host}/api/stream/${v.thumb_file_id}` : ""
+    watchUrl: `${host}/api/stream?file_id=${v.file_id}`,
+    thumbnail: v.thumb_file_id ? `${host}/api/stream?file_id=${v.thumb_file_id}` : ""
   }));
 
-  res.json(formattedVault);
+  res.json(formatted);
 });
 
-// --- TELEGRAM STARS INVOICE ---
 app.get("/api/create-invoice", async (_req, res) => {
   try {
     if (!BOT_TOKEN) return res.status(400).json({ error: "Bot token missing" });
@@ -161,5 +149,5 @@ app.get("/api/create-invoice", async (_req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
