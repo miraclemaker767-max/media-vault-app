@@ -13,7 +13,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// Serve static frontend files
+// Serve static frontend files from your root directory
 app.use(express.static(__dirname));
 
 const MONGO_URI = process.env.MONGODB_URI;
@@ -28,23 +28,27 @@ MongoClient.connect(MONGO_URI)
   .catch(error => console.error('❌ MongoDB Connection Error:', error));
 
 // -------------------------------------------------------------
-// 1. TELEGRAM WEBHOOK (Saves new channel posts & handles /delete)
+// 1. TELEGRAM WEBHOOK (Logs payload & handles posts/documents)
 // -------------------------------------------------------------
 app.post('/telegram-webhook', async (req, res) => {
   const update = req.body;
+  console.log('📥 Incoming webhook payload:', JSON.stringify(update));
 
   try {
-    // Detect new video posted in your Telegram channel
-    if (update.channel_post && update.channel_post.video) {
+    const post = update.channel_post || update.message;
+
+    if (post && (post.video || post.document)) {
+      const media = post.video || post.document;
+      
       const videoData = {
-        message_id: update.channel_post.message_id,
-        file_id: update.channel_post.video.file_id,
-        title: update.channel_post.caption || 'VIP Private Video',
+        message_id: post.message_id,
+        file_id: media.file_id,
+        title: post.caption || 'VIP Private Video',
         thumbnail: '',
-        destination: `https://t.me/PrivateVIPVault/${update.channel_post.message_id}`,
+        destination: `https://t.me/PrivateVIPVault/${post.message_id}`,
         isManual: true,
         source: 'Telegram Private Vault',
-        date: update.channel_post.date || Date.now()
+        date: post.date || Date.now()
       };
 
       if (db) {
@@ -53,11 +57,13 @@ app.post('/telegram-webhook', async (req, res) => {
           { $set: videoData },
           { upsert: true }
         );
-        console.log(`📹 Saved video message #${videoData.message_id} to database`);
+        console.log(`📹 Successfully saved video message #${videoData.message_id} to MongoDB!`);
+      } else {
+        console.error('❌ Database connection not established yet.');
       }
     }
 
-    // Detect delete command (e.g. "/delete 145")
+    // Handle delete command (e.g. "/delete 145")
     if (update.message && update.message.text && update.message.text.startsWith('/delete')) {
       const parts = update.message.text.split(' ');
       const messageIdToDelete = parseInt(parts[1]);
@@ -68,7 +74,7 @@ app.post('/telegram-webhook', async (req, res) => {
       }
     }
   } catch (error) {
-    console.error('Webhook error:', error);
+    console.error('❌ Webhook error processing update:', error);
   }
 
   res.sendStatus(200);
@@ -94,7 +100,7 @@ app.get('/api/get-videos', (req, res) => {
 });
 
 // -------------------------------------------------------------
-// 3. EPORNER CATALOG INTEGRATION (With secure thumbnails)
+// 3. EPORNER CATALOG INTEGRATION (Secure thumbnails)
 // -------------------------------------------------------------
 app.get('/api/videos', async (req, res) => {
   try {
