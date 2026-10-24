@@ -89,26 +89,34 @@ app.get("/api/telegram-videos", (_req, res) => {
 });
 
 // --- 3. EPORNER CATALOG ENDPOINT ---
+// --- 3. EPORNER CATALOG ENDPOINT (Returns direct array format) ---
 app.get("/api/videos", async (_req, res) => {
   try {
     const response = await fetch("https://www.eporner.com/api/v2/video/search/?query=hd&per_page=30&format=json");
     const data = await response.json();
 
     const items = Array.isArray(data.videos) ? data.videos : [];
-    const normalizedVideos = items.map(v => ({
-      id: String(v.id || v.url),
-      title: v.title || "Featured Video",
-      thumbnail: v.default_thumb?.src || v.embed_url || "",
-      watchUrl: v.url,
-      targetUrl: v.url,
-      isManual: false,
-      source: "Eporner"
-    }));
+    const normalizedVideos = items.map(v => {
+      let thumb = v.default_thumb?.src || v.embed_url || "";
+      if (thumb.startsWith("//")) thumb = `https:${thumb}`;
+      else if (thumb.startsWith("http://")) thumb = thumb.replace("http://", "https://");
 
-    res.json({ videos: normalizedVideos });
+      return {
+        id: String(v.id || v.url),
+        title: v.title || "Featured Video",
+        thumbnail: thumb,
+        targetUrl: v.url,
+        url: v.url,
+        isManual: false,
+        source: "Eporner"
+      };
+    });
+
+    // Return direct array so index.html processes it instantly
+    res.json(normalizedVideos);
   } catch (err) {
     console.error("Catalog fetch error:", err);
-    res.json({ videos: [] });
+    res.json([]);
   }
 });
 
