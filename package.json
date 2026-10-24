@@ -1,14 +1,22 @@
 {
-  "name": "media-vault-backend",
-  "version": "1.0.0",
-  "description": "Telegram Mini App Backend with MongoDB and Eporner Integration",
+  "name": "media-vault-app",
+  "version": "1.1.0",
+  "description": "Cached multi-source media catalog API",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "node --check server.js"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/miraclemaker767-max/media-vault-app.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
   "dependencies": {
-    "axios": "^1.7.0",
-    "express": "^4.19.2",
-    "mongodb": "^6.8.0"
+    "cors": "^2.8.6",
+    "express": "^5.3.0"
   }
 }
