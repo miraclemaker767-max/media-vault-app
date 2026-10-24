@@ -9,53 +9,35 @@ app.use(express.static(__dirname));
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 let telegramVault = [];
+let epornerCache = [];
+let lastFetch = 0;
 
 app.get("/health", (_req, res) => res.status(200).send("OK"));
 
-// --- VIDEO STREAM PROXY (Fixes playback & token expiration) ---
-app.get("/api/stream/:file_id", async (req, res) => {
-  const fileId = req.params.file_id;
-  if (!fileId || !BOT_TOKEN) return res.status(400).send("Missing parameters");
+// --- FETCH EPORNER CATALOG ---
+async function fetchEporner() {
+  const now = Date.now();
+  if (epornerCache.length && now - lastFetch < 1000 * 60 * 15) return epornerCache;
 
   try {
-    const fileRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getFile?file_id=${fileId}`);
-    const fileData = await fileRes.json();
-
-    if (!fileData.ok || !fileData.result.file_path) {
-      return res.status(404).send("File unavailable");
+    const res = await fetch("https://www.eporner.com/api/v2/video/search/?query=doggy+style&per_page=20&format=json");
+    const data = await res.json();
+    if (data && data.videos) {
+      epornerCache = data.videos.map(v => ({
+        id: String(v.id),
+        title: v.title,
+        thumbnail: v.default_thumb?.src || v.thumbs?.[0]?.src || "",
+        watchUrl: v.embed || v.url,
+        targetUrl: v.url,
+        source: "Eporner"
+      }));
+      lastFetch = now;
     }
-
-    const fileUrl = `https://api.telegram.org/file/bot${BOT_TOKEN}/${fileData.result.file_path}`;
-
-    const headers = {};
-    if (req.headers.range) {
-      headers["Range"] = req.headers.range;
-    }
-
-    const mediaRes = await fetch(fileUrl, { headers });
-
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Content-Type", mediaRes.headers.get("content-type") || "video/mp4");
-    
-    if (mediaRes.headers.get("content-length")) {
-      res.setHeader("Content-Length", mediaRes.headers.get("content-length"));
-    }
-    if (mediaRes.headers.get("accept-ranges")) {
-      res.setHeader("Accept-Ranges", mediaRes.headers.get("accept-ranges"));
-    }
-    if (mediaRes.headers.get("content-range")) {
-      res.setHeader("Content-Range", mediaRes.headers.get("content-range"));
-      res.status(206);
-    } else {
-      res.status(mediaRes.status);
-    }
-
-    mediaRes.body.pipe(res);
   } catch (err) {
-    console.error("Stream error:", err);
-    res.status(500).send("Streaming failed");
+    console.error("Eporner fetch error:", err);
   }
-});
+  return epornerCache;
+}
 
 // --- TELEGRAM WEBHOOK ---
 app.post("/telegram-webhook", async (req, res) => {
@@ -82,6 +64,17 @@ app.post("/telegram-webhook", async (req, res) => {
       const rawChatId = String(post.chat.id).replace("-100", "");
       const privateLink = `https://t.me/c/${rawChatId}/${post.message_id}`;
 
+      let fileDirectUrl = "";
+      if (BOT_TOKEN) {
+        try {
+          const fileRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getFile?file_id=${fileId}`);
+          const fileData = await fileRes.json();
+          if (fileData.ok && fileData.result.file_path) {
+            fileDirectUrl = `https://api.telegram.org/file/bot${BOT_TOKEN}/${fileData.result.file_path}`;
+          }
+        } catch (e) {}
+      }
+
       let thumbUrl = "";
       if (BOT_TOKEN && (media.thumbnail || media.thumb)) {
         try {
@@ -96,11 +89,12 @@ app.post("/telegram-webhook", async (req, res) => {
 
       const videoItem = {
         id: String(fileId),
-        file_id: fileId,
         message_id: post.message_id,
         title: post.caption || `VIP Video #${post.message_id}`,
         thumbnail: thumbUrl,
-        targetUrl: privateLink
+        watchUrl: fileDirectUrl || privateLink,
+        targetUrl: privateLink,
+        source: "Telegram Private Vault"
       };
 
       telegramVault = telegramVault.filter(v => v.id !== videoItem.id && v.message_id !== videoItem.message_id);
@@ -113,17 +107,11 @@ app.post("/telegram-webhook", async (req, res) => {
   res.sendStatus(200);
 });
 
-// --- GET CATALOG VIDEOS ---
-app.get("/api/telegram-videos", (req, res) => {
-  const protocol = req.headers["x-forwarded-proto"] || req.protocol;
-  const host = protocol + "://" + req.get("host");
-
-  const formattedVault = telegramVault.map(v => ({
-    ...v,
-    watchUrl: `${host}/api/stream/${v.file_id}`
-  }));
-
-  res.json(formattedVault);
+// --- COMBINED CATALOG ENDPOINT ---
+app.get("/api/telegram-videos", async (_req, res) => {
+  const epornerVideos = await fetchEporner();
+  const combined = [...telegramVault, ...epornerVideos];
+  res.json(combined);
 });
 
 // --- TELEGRAM STARS INVOICE ---
