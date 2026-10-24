@@ -333,7 +333,6 @@
       }
     }
 
-    // --- FULL HTML5 VIDEO PLAYER WITH CONTROLS ---
     function openInAppVideo(title, videoUrl) {
       const modal = document.getElementById("playerModal");
       const playerBody = document.getElementById("playerBody");
@@ -342,36 +341,16 @@
       titleEl.textContent = title;
       playerBody.replaceChildren();
 
-      // Create video container with direct Telegram web support
-      const container = document.createElement("div");
-      container.style.width = "100%";
-      container.style.height = "100%";
-      container.style.display = "flex";
-      container.style.flexDirection = "column";
-      container.style.alignItems = "center";
-      container.style.justifyContent = "center";
-      container.style.background = "#000";
-
       const videoElement = document.createElement("video");
       videoElement.src = videoUrl;
       videoElement.controls = true;
       videoElement.autoplay = true;
       videoElement.playsInline = true;
+      videoElement.controlsList = "nodownload";
       videoElement.style.width = "100%";
       videoElement.style.height = "100%";
 
-      // Fallback message if browser blocks direct streaming
-      videoElement.addEventListener("error", () => {
-        container.innerHTML = `
-          <div style="padding:20px; text-align:center; color:#fff;">
-            <p style="margin-bottom:15px; font-size:13px;">Direct playback restricted by browser security.</p>
-            <a href="${videoUrl}" target="_blank" style="padding:10px 20px; background:#e7c477; color:#111; font-weight:800; border-radius:8px; text-decoration:none;">OPEN VIDEO IN TELEGRAM</a>
-          </div>
-        `;
-      });
-
-      container.append(videoElement);
-      playerBody.append(container);
+      playerBody.append(videoElement);
       modal.classList.add("open");
     }
 
