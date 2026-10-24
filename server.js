@@ -14,7 +14,61 @@ let telegramVault = [];
 
 app.get("/health", (_req, res) => res.status(200).send("OK"));
 
-// --- 1. TELEGRAM WEBHOOK ---
+// --- VIDEO & THUMBNAIL PROXY ROUTE (Fixes CORS & Video Playback) ---
+app.get("/api/proxy", async (req, res) => {
+  const fileId = req.query.file_id;
+  if (!fileId || !BOT_TOKEN) {
+    return res.status(400).send("Missing file_id or bot token");
+  }
+
+  try {
+    // 1. Get real file path from Telegram
+    const fileRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getFile?file_id=${fileId}`);
+    const fileData = await fileRes.json();
+
+    if (!fileData.ok || !fileData.result.file_path) {
+      return res.status(404).send("File not found on Telegram");
+    }
+
+    const fileUrl = `https://api.telegram.org/file/bot${BOT_TOKEN}/${fileData.result.file_path}`;
+
+    // 2. Fetch stream from Telegram with Range headers if requested by video player
+    const headers = {};
+    if (req.headers.range) {
+      headers["Range"] = req.headers.range;
+    }
+
+    const mediaRes = await fetch(fileUrl, { headers });
+
+    // 3. Forward stream headers to browser
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Headers", "*");
+    res.setHeader("Content-Type", mediaRes.headers.get("content-type") || "video/mp4");
+    
+    if (mediaRes.headers.get("content-length")) {
+      res.setHeader("Content-Length", mediaRes.headers.get("content-length"));
+    }
+    if (mediaRes.headers.get("accept-ranges")) {
+      res.setHeader("Accept-Ranges", mediaRes.headers.get("accept-ranges"));
+    }
+    if (mediaRes.headers.get("content-range")) {
+      res.setHeader("Content-Range", mediaRes.headers.get("content-range"));
+      res.status(206); // Partial Content for seeking
+    } else {
+      res.status(mediaRes.status);
+    }
+
+    // Pipe stream directly to browser
+    const arrayBuffer = await mediaRes.arrayBuffer();
+    res.send(Buffer.from(arrayBuffer));
+
+  } catch (err) {
+    console.error("Proxy error:", err);
+    res.status(500).send("Error streaming media");
+  }
+});
+
+// --- TELEGRAM WEBHOOK ---
 app.post("/telegram-webhook", async (req, res) => {
   const update = req.body;
 
@@ -42,43 +96,22 @@ app.post("/telegram-webhook", async (req, res) => {
       const rawChatId = String(post.chat.id).replace("-100", "");
       const privateLink = `https://t.me/c/${rawChatId}/${post.message_id}`;
 
-      let directVideoUrl = privateLink;
-      if (BOT_TOKEN) {
-        try {
-          const fileRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getFile?file_id=${fileId}`);
-          const fileData = await fileRes.json();
-          if (fileData.ok && fileData.result.file_path) {
-            directVideoUrl = `https://api.telegram.org/file/bot${BOT_TOKEN}/${fileData.result.file_path}`;
-          }
-        } catch (e) {
-          console.error("Error fetching direct video stream URL:", e);
-        }
-      }
-
-      let thumbnailUrl = "";
-      if (BOT_TOKEN && (media.thumbnail || media.thumb)) {
-        try {
-          const thumbObj = media.thumbnail || media.thumb;
-          const thumbRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getFile?file_id=${thumbObj.file_id}`);
-          const thumbData = await thumbRes.json();
-          if (thumbData.ok && thumbData.result.file_path) {
-            thumbnailUrl = `https://api.telegram.org/file/bot${BOT_TOKEN}/${thumbData.result.file_path}`;
-          }
-        } catch (e) {}
+      let thumbFileId = "";
+      if (media.thumbnail || media.thumb) {
+        thumbFileId = (media.thumbnail || media.thumb).file_id;
       }
 
       const videoItem = {
         id: String(fileId),
+        file_id: fileId,
+        thumb_file_id: thumbFileId,
         message_id: post.message_id,
         title: post.caption || `VIP Video #${post.message_id}`,
-        thumbnail: thumbnailUrl,
-        watchUrl: directVideoUrl,
         targetUrl: privateLink,
         isManual: true,
         source: "Telegram Private Vault"
       };
 
-      // Unshift to top of list, prevent duplicates
       telegramVault = telegramVault.filter(v => v.id !== videoItem.id && v.message_id !== videoItem.message_id);
       telegramVault.unshift(videoItem);
 
@@ -91,12 +124,21 @@ app.post("/telegram-webhook", async (req, res) => {
   res.sendStatus(200);
 });
 
-// --- 2. VAULT API ENDPOINT ---
+// --- VAULT API ENDPOINT ---
 app.get("/api/telegram-videos", (_req, res) => {
-  res.json(telegramVault);
+  const host = _req.protocol + "://" + _req.get("host");
+
+  // Map videos to internal proxy URLs
+  const proxiedVault = telegramVault.map(v => ({
+    ...v,
+    watchUrl: `${host}/api/proxy?file_id=${v.file_id}`,
+    thumbnail: v.thumb_file_id ? `${host}/api/proxy?file_id=${v.thumb_file_id}` : ""
+  }));
+
+  res.json(proxiedVault);
 });
 
-// --- 3. TELEGRAM STARS INVOICE ---
+// --- TELEGRAM STARS INVOICE ---
 app.get("/api/create-invoice", async (_req, res) => {
   try {
     if (!BOT_TOKEN) return res.status(400).json({ error: "Bot token missing" });
