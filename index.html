@@ -275,6 +275,34 @@
           img.addEventListener("load", () => placeholder.remove(), { once: true });
           img.addEventListener("error", () => img.remove(), { once: true });
           thumbWrap.append(img);
+        } else if (video.watchUrl) {
+          // --- AUTOMATIC CLIENT-SIDE VIDEO THUMBNAIL GENERATOR ---
+          const canvas = document.createElement("canvas");
+          const ctx = canvas.getContext("2d");
+          const tempVideo = document.createElement("video");
+          tempVideo.src = video.watchUrl;
+          tempVideo.crossOrigin = "anonymous";
+          tempVideo.currentTime = 1; // Seek to 1 second for a good thumbnail frame
+          tempVideo.muted = true;
+          tempVideo.playsInline = true;
+
+          tempVideo.addEventListener("loadeddata", () => {
+            canvas.width = tempVideo.videoWidth || 320;
+            canvas.height = tempVideo.videoHeight || 180;
+            try {
+              ctx.drawImage(tempVideo, 0, 0, canvas.width, canvas.height);
+              const dataUrl = canvas.toDataURL("image/jpeg", 0.7);
+              
+              const img = document.createElement("img");
+              img.className = "thumb";
+              img.loading = "lazy";
+              img.src = dataUrl;
+              img.addEventListener("load", () => placeholder.remove(), { once: true });
+              thumbWrap.append(img);
+            } catch (e) {
+              console.log("Canvas thumbnail generation blocked or failed", e);
+            }
+          }, { once: true });
         }
 
         const badge = document.createElement("span");
