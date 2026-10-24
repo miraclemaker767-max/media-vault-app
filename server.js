@@ -109,17 +109,9 @@ app.post("/telegram-webhook", async (req, res) => {
 
 // --- COMBINED CATALOG ENDPOINT ---
 app.get("/api/telegram-videos", async (_req, res) => {
-  let epornerVideos = [];
-  try {
-    epornerVideos = await fetchEporner();
-  } catch (e) {
-    epornerVideos = epornerCache;
-  }
-
-  const safeVault = Array.isArray(telegramVault) ? telegramVault : [];
-  const safeEporner = Array.isArray(epornerVideos) ? epornerVideos : [];
-
-  res.json([...safeVault, ...safeEporner]);
+  const epornerVideos = await fetchEporner();
+  const combined = [...telegramVault, ...epornerVideos];
+  res.json(combined);
 });
 
 // --- TELEGRAM STARS INVOICE ---
