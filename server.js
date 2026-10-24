@@ -1,5 +1,6 @@
 const express = require('express');
 const { MongoClient } = require('mongodb');
+const axios = require('axios'); // Required for fetching external sources like Eporner
 
 const app = express();
 app.use(express.json());
@@ -61,7 +62,7 @@ app.post('/telegram-webhook', async (req, res) => {
 });
 
 // -------------------------------------------------------------
-// 2. FETCH VIDEOS FOR MINI APP (Persists across refreshes!)
+// 2. FETCH VIDEOS FOR MINI APP (Telegram DB Videos)
 // -------------------------------------------------------------
 app.get('/api/get-videos', async (req, res) => {
   try {
@@ -79,7 +80,30 @@ app.get('/api/get-videos', async (req, res) => {
 });
 
 // -------------------------------------------------------------
-// 3. DELETE VIDEO ENDPOINT (Optional backup if triggered via code/UI)
+// 3. EPORNER CATALOG INTEGRATION
+// -------------------------------------------------------------
+app.get('/api/eporner-videos', async (req, res) => {
+  try {
+    const response = await axios.get('https://www.eporner.com/api/v2/video/search/?query=hd&per_page=20&format=json');
+    
+    // Normalize Eporner items to ensure HTTPS URLs and clean structures
+    const epornerVideos = response.data.videos.map(video => ({
+      id: video.id,
+      title: video.title,
+      url: video.url,
+      thumbnail: video.default_thumb.src.startsWith('http') ? video.default_thumb.src : `https:${video.default_thumb.src}`,
+      duration: video.duration
+    }));
+
+    res.json({ success: true, videos: epornerVideos });
+  } catch (error) {
+    console.error('Error fetching Eporner catalog:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch Eporner feed' });
+  }
+});
+
+// -------------------------------------------------------------
+// 4. DELETE VIDEO ENDPOINT
 // -------------------------------------------------------------
 app.post('/api/delete-video', async (req, res) => {
   const { message_id } = req.body;
