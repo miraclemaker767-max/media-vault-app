@@ -6,7 +6,14 @@ const path = require('path');
 const app = express();
 app.use(express.json());
 
-// Serve static frontend files from your project root or a 'public' folder
+// Enable CORS so your frontend can communicate with backend endpoints smoothly
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  next();
+});
+
+// Serve static files (index.html, etc.)
 app.use(express.static(__dirname));
 
 const MONGO_URI = process.env.MONGODB_URI;
@@ -21,19 +28,22 @@ MongoClient.connect(MONGO_URI)
   .catch(error => console.error('❌ MongoDB Connection Error:', error));
 
 // -------------------------------------------------------------
-// 1. TELEGRAM WEBHOOK (New Posts & Delete Commands)
+// 1. TELEGRAM WEBHOOK (Handles New Posts & Delete Commands)
 // -------------------------------------------------------------
 app.post('/telegram-webhook', async (req, res) => {
   const update = req.body;
 
   try {
+    // Detect new video posted in your Telegram channel
     if (update.channel_post && update.channel_post.video) {
       const videoData = {
         message_id: update.channel_post.message_id,
         file_id: update.channel_post.video.file_id,
-        title: update.channel_post.caption || 'VIP Video',
-        thumbnail: '', 
+        title: update.channel_post.caption || 'VIP Private Video',
+        thumbnail: '',
         url: `https://t.me/your_channel/${update.channel_post.message_id}`,
+        isManual: true,
+        source: 'Telegram Private Vault',
         date: update.channel_post.date || Date.now()
       };
 
@@ -43,58 +53,84 @@ app.post('/telegram-webhook', async (req, res) => {
           { $set: videoData },
           { upsert: true }
         );
-        console.log(`📹 Saved video message #${videoData.message_id}`);
+        console.log(`📹 Saved video message #${videoData.message_id} to Database`);
       }
     }
 
+    // Detect delete command sent to bot (e.g. "/delete 145")
     if (update.message && update.message.text && update.message.text.startsWith('/delete')) {
       const parts = update.message.text.split(' ');
       const messageIdToDelete = parseInt(parts[1]);
 
       if (messageIdToDelete && db) {
         await db.collection('videos').deleteOne({ message_id: messageIdToDelete });
-        console.log(`🗑️ Deleted video message #${messageIdToDelete}`);
+        console.log(`🗑️ Deleted video message #${messageIdToDelete} from Database via command`);
       }
     }
   } catch (error) {
-    console.error('Webhook error:', error);
+    console.error('Error handling webhook update:', error);
   }
 
   res.sendStatus(200);
 });
 
 // -------------------------------------------------------------
-// 2. FETCH TELEGRAM VIDEOS FROM MONGODB
+// 2. FETCH TELEGRAM PRIVATE VIDEOS (Mapped to /api/telegram-videos)
 // -------------------------------------------------------------
-app.get('/api/get-videos', async (req, res) => {
+app.get('/api/telegram-videos', async (req, res) => {
   try {
     if (!db) return res.json({ success: true, videos: [] });
+    
     const videos = await db.collection('videos').find({}).sort({ date: -1 }).toArray();
     res.json({ success: true, videos });
   } catch (error) {
+    console.error('Error fetching Telegram videos:', error);
     res.status(500).json({ success: false, videos: [] });
   }
 });
 
+// Alias route to keep backward compatibility
+app.get('/api/get-videos', (req, res) => {
+  res.redirect('/api/telegram-videos');
+});
+
 // -------------------------------------------------------------
-// 3. EPORNER CATALOG INTEGRATION
+// 3. EPORNER CATALOG INTEGRATION (Mapped to /api/videos)
 // -------------------------------------------------------------
-app.get('/api/eporner-videos', async (req, res) => {
+app.get('/api/videos', async (req, res) => {
   try {
     const response = await axios.get('https://www.eporner.com/api/v2/video/search/?query=hd&per_page=20&format=json');
     
     const epornerVideos = response.data.videos.map(video => ({
       id: video.id,
       title: video.title,
-      url: video.url,
+      destination: video.url,
       thumbnail: video.default_thumb.src.startsWith('http') ? video.default_thumb.src : `https:${video.default_thumb.src}`,
-      duration: video.duration
+      duration: video.duration,
+      isManual: false
     }));
 
     res.json({ success: true, videos: epornerVideos });
   } catch (error) {
     console.error('Error fetching Eporner catalog:', error);
     res.status(500).json({ success: false, videos: [] });
+  }
+});
+
+// Alias route to keep backward compatibility
+app.get('/api/eporner-videos', (req, res) => {
+  res.redirect('/api/videos');
+});
+
+// -------------------------------------------------------------
+// 4. TELEGRAM STARS PAYMENT INVOICE PLACEHOLDER
+// -------------------------------------------------------------
+app.get('/api/create-invoice', async (req, res) => {
+  try {
+    // Place invoice generation logic here when ready
+    res.json({ success: false, message: 'Invoice system initialized' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Invoice creation failed' });
   }
 });
 
