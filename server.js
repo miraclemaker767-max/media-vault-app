@@ -18,29 +18,43 @@ MongoClient.connect(MONGO_URI)
   .catch(error => console.error('❌ MongoDB Connection Error:', error));
 
 // -------------------------------------------------------------
-// 1. SAVE VIDEO WHEN POSTED IN TELEGRAM CHANNEL
+// 1. TELEGRAM WEBHOOK (Handles New Posts & Delete Commands)
 // -------------------------------------------------------------
 app.post('/telegram-webhook', async (req, res) => {
   const update = req.body;
 
-  // Detect new video posted in channel
-  if (update.channel_post && update.channel_post.video) {
-    const videoData = {
-      message_id: update.channel_post.message_id,
-      file_id: update.channel_post.video.file_id,
-      caption: update.channel_post.caption || 'VIP Video',
-      date: update.channel_post.date || Date.now()
-    };
+  try {
+    // A. Detect new video posted in your Telegram channel
+    if (update.channel_post && update.channel_post.video) {
+      const videoData = {
+        message_id: update.channel_post.message_id,
+        file_id: update.channel_post.video.file_id,
+        caption: update.channel_post.caption || 'VIP Video',
+        date: update.channel_post.date || Date.now()
+      };
 
-    // Store permanently in 'videos' collection
-    if (db) {
-      await db.collection('videos').updateOne(
-        { message_id: videoData.message_id },
-        { $set: videoData },
-        { upsert: true }
-      );
-      console.log(`📹 Saved video message #${videoData.message_id} to Database`);
+      if (db) {
+        await db.collection('videos').updateOne(
+          { message_id: videoData.message_id },
+          { $set: videoData },
+          { upsert: true }
+        );
+        console.log(`📹 Saved video message #${videoData.message_id} to Database`);
+      }
     }
+
+    // B. Detect delete command sent to bot (e.g. "/delete 145")
+    if (update.message && update.message.text && update.message.text.startsWith('/delete')) {
+      const parts = update.message.text.split(' ');
+      const messageIdToDelete = parseInt(parts[1]);
+
+      if (messageIdToDelete && db) {
+        await db.collection('videos').deleteOne({ message_id: messageIdToDelete });
+        console.log(`🗑️ Deleted video message #${messageIdToDelete} from Database via command.`);
+      }
+    }
+  } catch (error) {
+    console.error('Error handling webhook update:', error);
   }
 
   res.sendStatus(200);
@@ -65,7 +79,7 @@ app.get('/api/get-videos', async (req, res) => {
 });
 
 // -------------------------------------------------------------
-// 3. DELETE VIDEO FROM DATABASE (Admin / Command trigger)
+// 3. DELETE VIDEO ENDPOINT (Optional backup if triggered via code/UI)
 // -------------------------------------------------------------
 app.post('/api/delete-video', async (req, res) => {
   const { message_id } = req.body;
@@ -77,6 +91,13 @@ app.post('/api/delete-video', async (req, res) => {
     }
     res.json({ success: true });
   } catch (error) {
+    console.error('Error deleting video:', error);
     res.status(500).json({ success: false, message: 'Delete failed' });
   }
+});
+
+// Start server
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`🚀 Server is running on port ${PORT}`);
 });
