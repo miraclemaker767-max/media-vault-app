@@ -229,9 +229,9 @@
       if (!video || typeof video !== "object") return null;
       const title = String(video.title || video.name || video.label || ("Video " + (index + 1)));
       const thumbnail = String(video.thumbnail || video.image || video.poster || video.thumb || "");
-      const destination = String(video.targetUrl || video.url || video.embedUrl || video.link || "");
+      const watchUrl = String(video.watchUrl || video.targetUrl || video.url || video.embedUrl || video.link || "");
       const isManual = Boolean(video.isManual);
-      return { title, thumbnail, destination, isManual };
+      return { title, thumbnail, watchUrl, destination: watchUrl, isManual };
     }
 
     function safeHttpUrl(value) {
@@ -239,6 +239,34 @@
         const url = new URL(value);
         return ["https:", "http:"].includes(url.protocol) ? url.href : "";
       } catch (_) { return ""; }
+    }
+
+    // --- AUTOMATIC FRAME CAPTURE FROM VIDEO FILE ---
+    function generateThumbnailFromVideo(videoUrl, callback) {
+      const video = document.createElement("video");
+      video.src = videoUrl;
+      video.crossOrigin = "anonymous";
+      video.muted = true;
+      video.playsInline = true;
+      video.currentTime = 1; // Snaps a clean frame at 1s mark
+
+      video.addEventListener("loadeddata", () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = video.videoWidth || 320;
+        canvas.height = video.videoHeight || 180;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        try {
+          const dataUrl = canvas.toDataURL("image/jpeg", 0.7);
+          callback(dataUrl);
+        } catch (e) {
+          callback("");
+        }
+      });
+
+      video.addEventListener("error", () => {
+        callback("");
+      });
     }
 
     function renderVideos() {
@@ -276,33 +304,16 @@
           img.addEventListener("error", () => img.remove(), { once: true });
           thumbWrap.append(img);
         } else if (video.watchUrl) {
-          // --- AUTOMATIC CLIENT-SIDE VIDEO THUMBNAIL GENERATOR ---
-          const canvas = document.createElement("canvas");
-          const ctx = canvas.getContext("2d");
-          const tempVideo = document.createElement("video");
-          tempVideo.src = video.watchUrl;
-          tempVideo.crossOrigin = "anonymous";
-          tempVideo.currentTime = 1; // Seek to 1 second for a good thumbnail frame
-          tempVideo.muted = true;
-          tempVideo.playsInline = true;
-
-          tempVideo.addEventListener("loadeddata", () => {
-            canvas.width = tempVideo.videoWidth || 320;
-            canvas.height = tempVideo.videoHeight || 180;
-            try {
-              ctx.drawImage(tempVideo, 0, 0, canvas.width, canvas.height);
-              const dataUrl = canvas.toDataURL("image/jpeg", 0.7);
-              
+          // Frame extraction fallback if no thumbnail was provided
+          generateThumbnailFromVideo(video.watchUrl, (frameUrl) => {
+            if (frameUrl) {
               const img = document.createElement("img");
               img.className = "thumb";
-              img.loading = "lazy";
-              img.src = dataUrl;
+              img.src = frameUrl;
               img.addEventListener("load", () => placeholder.remove(), { once: true });
               thumbWrap.append(img);
-            } catch (e) {
-              console.log("Canvas thumbnail generation blocked or failed", e);
             }
-          }, { once: true });
+          });
         }
 
         const badge = document.createElement("span");
@@ -340,19 +351,10 @@
     // --- VIDEO PLAYBACK & AD HANDLING ---
     function handleWatchVideo(video) {
       const isVip = localStorage.getItem("is_vip") === "true";
-      const url = video.destination;
+      const url = video.watchUrl || video.destination;
 
       const launchPlayer = () => {
-        const isTelegramVideo = video.isManual || video.source === "Telegram Private Vault" || url.includes("telegram.org");
-        if (isTelegramVideo) {
-          openInAppVideo(video.title, url);
-        } else {
-          if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.openLink) {
-            window.Telegram.WebApp.openLink(url);
-          } else {
-            window.open(url, "_blank", "noopener,noreferrer");
-          }
-        }
+        openInAppVideo(video.title, url);
       };
 
       if (isVip) {
@@ -364,7 +366,7 @@
             launchPlayer();
           }).catch((err) => {
             console.log("Ad skipped or failed to load:", err);
-            launchPlayer(); // Allow viewing even if ad fails
+            launchPlayer();
           });
         } else {
           launchPlayer();
@@ -409,12 +411,10 @@
       }
 
       try {
-        // Fetch invoice link from your Render backend server
         const res = await fetch(`${API_URL}/api/create-invoice`);
         const data = await res.json();
 
         if (data.invoiceLink) {
-          // Open Telegram's native payment sheet for Stars
           window.Telegram.WebApp.openInvoice(data.invoiceLink, function (status) {
             if (status === "paid") {
               localStorage.setItem("is_vip", "true");
@@ -449,16 +449,7 @@
           console.log("Private channel fetch error:", e);
         }
 
-        let apiVideos = [];
-        try {
-          const data = await fetchWithTimeout(API_URL + "/api/videos");
-          const list = Array.isArray(data) ? data : (Array.isArray(data && data.videos) ? data.videos : []);
-          apiVideos = list.map(normalizeVideo).filter(Boolean);
-        } catch (e) {
-          console.log("API catalog fetch error:", e);
-        }
-        
-        allVideos = [...privateVideos, ...apiVideos];
+        allVideos = [...privateVideos];
         catalogStatus.textContent = "Catalog connected";
         renderVideos();
       } catch (error) {
@@ -478,8 +469,6 @@
     searchInput.addEventListener("input", renderVideos);
     refreshButton.addEventListener("click", loadCatalog);
     document.getElementById("closePlayerBtn").addEventListener("click", closeInAppVideo);
-    
-    // Wire up the VIP button to trigger the Telegram Stars checkout flow
     document.getElementById("vipButton").addEventListener("click", handleVipCheckout);
 
     loadCatalog();
