@@ -83,27 +83,15 @@
     .state p { margin:0 auto 15px; max-width:280px; color:var(--muted); font-size:12px; line-height:1.6; }
     .footer { text-align:center; padding:24px 8px 4px; color:#6e6b78; font-size:10px; line-height:1.7; }
     
-    /* In-App Native Video Player Overlay */
+    /* Native In-App Video Player Overlay */
     .player-modal-backdrop { position:fixed; inset:0; z-index:99; display:none; flex-direction:column; align-items:center; justify-content:center; padding:16px; background:rgba(0,0,0,0.92); backdrop-filter:blur(12px); }
     .player-modal-backdrop.open { display:flex; }
     .player-container { width:min(100%, 800px); background:#111118; border:1px solid var(--gold-2); border-radius:16px; overflow:hidden; display:flex; flex-direction:column; box-shadow:0 10px 40px #000; }
     .player-header { display:flex; justify-content:space-between; align-items:center; padding:12px 16px; background:#171720; border-bottom:1px solid var(--line); }
     .player-title { font-size:13px; font-weight:700; color:#fff; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-right:10px; }
     .player-close-btn { background:var(--gold); border:none; color:#111; font-weight:800; padding:6px 14px; border-radius:8px; cursor:pointer; font-size:12px; }
-    .player-body { 
-      width: 100%; 
-      aspect-ratio: 16/9; 
-      background: #000; 
-      display: flex; 
-      align-items: center; 
-      justify-content: center; 
-      position: relative; 
-    }
-    .player-body video { 
-      width: 100%; 
-      height: 100%; 
-      object-fit: contain; 
-    }
+    .player-body { width: 100%; aspect-ratio: 16/9; background: #000; display: flex; align-items: center; justify-content: center; position: relative; }
+    .player-body video { width: 100%; height: 100%; object-fit: contain; }
 
     @media (min-width:620px) { .app { padding-left:24px; padding-right:24px; } .grid { grid-template-columns:repeat(3,minmax(0,1fr)); gap:15px; } .thumb-wrap { aspect-ratio:16/10; } .card-title { font-size:13px; min-height:37px; } .card-body { padding:13px; } }
     @media (min-width:850px) { .grid { grid-template-columns:repeat(4,minmax(0,1fr)); } }
@@ -149,10 +137,10 @@
       </div>
     </section>
 
-    <footer class="footer">VIP CONTENT VAULT : Builf For 18+ users and if anyone below 18 is here kindly exit.</footer>
+    <footer class="footer">VIP CONTENT VAULT · BUILT FOR 18+ USERS ONLY AND IF ANYONE IS BELOW 18 KINDLY EXIT .</footer>
   </main>
 
-  <!-- Full-featured Native Player Overlay -->
+  <!-- Video Player Modal -->
   <div class="player-modal-backdrop" id="playerModal">
     <div class="player-container">
       <div class="player-header">
@@ -160,14 +148,13 @@
         <button class="player-close-btn" id="closePlayerBtn" type="button">✕ Close</button>
       </div>
       <div class="player-body" id="playerBody">
-        <!-- Native Video Element with Play/Pause/Mute/Seek Controls -->
+        <!-- Native Video Element Injected Dynamically -->
       </div>
     </div>
   </div>
 
   <script>
     const adController = window.Adsgram ? window.Adsgram.init({ blockId: "55423" }) : null;
-    const API_URL = "https://media-vault-backend-r56c.onrender.com";
     const catalog = document.getElementById("catalog");
     const searchInput = document.getElementById("searchInput");
     const videoCount = document.getElementById("videoCount");
@@ -181,7 +168,6 @@
       if (tg) { tg.ready(); tg.expand(); }
     } catch (_) {}
 
-    // Check VIP status on load and update badge text/button
     function updateVipUI() {
       const isVip = localStorage.getItem("is_vip") === "true";
       if (isVip) {
@@ -201,19 +187,7 @@
       catalog.append(state);
     }
 
-    async function fetchWithTimeout(url, timeoutMs = 18000) {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), timeoutMs);
-      try {
-        const response = await fetch(url, { cache: "no-store", signal: controller.signal });
-        if (!response.ok) throw new Error("HTTP error " + response.status);
-        return await response.json();
-      } finally {
-        clearTimeout(timeout);
-      }
-    }
-
-    // --- AUTOMATIC THUMBNAIL GENERATOR (WITH CORS FIX) ---
+    // HTML5 Canvas Frame Snapper (Fallback if Telegram thumbnail is absent)
     function generateThumbnailFromVideo(videoUrl, callback) {
       const video = document.createElement("video");
       video.src = videoUrl;
@@ -223,7 +197,7 @@
       video.preload = "auto";
 
       video.addEventListener("loadeddata", () => {
-        video.currentTime = 1.0; // Seek to 1 second
+        video.currentTime = 1.0;
       });
 
       video.addEventListener("seeked", () => {
@@ -249,7 +223,7 @@
       videoCount.textContent = filtered.length + (filtered.length === 1 ? " VIDEO" : " VIDEOS");
 
       if (!filtered.length) {
-        showState("⌕", query ? "No matching videos" : "Vault is Empty", query ? "Try another term." : "Post a video in your Telegram channel to display it here.");
+        showState("⌕", query ? "No matching videos" : "Vault is Empty", query ? "Try another search term." : "Post a video in your Telegram channel to display it here.");
         return;
       }
 
@@ -276,7 +250,6 @@
           img.addEventListener("error", () => img.remove(), { once: true });
           thumbWrap.append(img);
         } else if (video.watchUrl) {
-          // Automatic thumbnail extraction
           generateThumbnailFromVideo(video.watchUrl, (frameUrl) => {
             if (frameUrl) {
               const img = document.createElement("img");
@@ -318,14 +291,12 @@
       catalog.append(fragment);
     }
 
-    // --- VIP AD-FREE WATCH HANDLING ---
     function handleWatchVideo(video) {
       const isVip = localStorage.getItem("is_vip") === "true";
       const launch = () => openInAppVideo(video.title, video.watchUrl);
 
       if (isVip) {
-        console.log("VIP user: Bypassing ads completely.");
-        launch(); // Ad-free access
+        launch(); // Ad-free for VIP
       } else if (adController) {
         adController.show().then(launch).catch(launch);
       } else {
@@ -333,6 +304,7 @@
       }
     }
 
+    // Native Player Trigger
     function openInAppVideo(title, videoUrl) {
       const modal = document.getElementById("playerModal");
       const playerBody = document.getElementById("playerBody");
@@ -341,61 +313,53 @@
       titleEl.textContent = title;
       playerBody.replaceChildren();
 
-      const video = document.createElement("video");
-      video.controls = true;
-      video.autoplay = true;
-      video.playsInline = true;
-      video.preload = "metadata";
-      video.crossOrigin = "anonymous";
-      video.style.width = "100%";
-      video.style.height = "100%";
-      video.style.objectFit = "contain";
+      const videoElement = document.createElement("video");
+      videoElement.src = videoUrl;
+      videoElement.controls = true; // Provides play, pause, seek bar, mute/unmute, and volume
+      videoElement.autoplay = true;
+      videoElement.playsInline = true;
+      videoElement.controlsList = "nodownload";
+      videoElement.style.width = "100%";
+      videoElement.style.height = "100%";
 
-      const source = document.createElement("source");
-      source.src = videoUrl;
-      source.type = "video/mp4";
-      video.append(source);
-
-      playerBody.append(video);
+      playerBody.append(videoElement);
       modal.classList.add("open");
-
-      // Force play call after DOM insertion
-      video.play().catch(e => console.log("Autoplay caught:", e));
     }
 
     function closeInAppVideo() {
       const modal = document.getElementById("playerModal");
       const playerBody = document.getElementById("playerBody");
-      playerBody.replaceChildren();
+      playerBody.replaceChildren(); // Immediately stops playback/audio
       modal.classList.remove("open");
     }
 
     async function handleVipCheckout() {
       const isVip = localStorage.getItem("is_vip") === "true";
       if (isVip) {
-        alert("You already have VIP Access unlocked!");
+        alert("VIP Access is already unlocked on this device!");
         return;
       }
 
       if (!window.Telegram || !window.Telegram.WebApp) {
-        alert("Open inside Telegram to buy VIP.");
+        alert("Please open this app inside Telegram to complete VIP checkout.");
         return;
       }
+
       try {
-        const res = await fetch(`${API_URL}/api/create-invoice`);
+        const res = await fetch("/api/create-invoice");
         const data = await res.json();
         if (data.invoiceLink) {
           window.Telegram.WebApp.openInvoice(data.invoiceLink, (status) => {
             if (status === "paid") {
               localStorage.setItem("is_vip", "true");
               updateVipUI();
-              alert("Payment successful! VIP & Ad-Free Access Unlocked.");
+              alert("Payment successful! VIP Access Unlocked.");
               location.reload();
             }
           });
         }
       } catch (err) {
-        alert("Payment connection error.");
+        alert("Unable to reach payment service.");
       }
     }
 
@@ -405,12 +369,13 @@
       refreshButton.disabled = true;
 
       try {
-        const data = await fetchWithTimeout(`${API_URL}/api/telegram-videos`);
+        const res = await fetch("/api/telegram-videos", { cache: "no-store" });
+        const data = await res.json();
         allVideos = Array.isArray(data) ? data : [];
         updateVipUI();
         renderVideos();
       } catch (e) {
-        showState("↻", "Error connecting", "Could not fetch channel videos.");
+        showState("↻", "Connection Issue", "Could not load video vault catalog.");
       } finally {
         isLoading = false;
         refreshButton.disabled = false;
