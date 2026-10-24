@@ -341,17 +341,26 @@
       titleEl.textContent = title;
       playerBody.replaceChildren();
 
-      const videoElement = document.createElement("video");
-      videoElement.src = videoUrl;
-      videoElement.controls = true;
-      videoElement.autoplay = true;
-      videoElement.playsInline = true;
-      videoElement.controlsList = "nodownload";
-      videoElement.style.width = "100%";
-      videoElement.style.height = "100%";
+      const video = document.createElement("video");
+      video.controls = true;
+      video.autoplay = true;
+      video.playsInline = true;
+      video.preload = "metadata";
+      video.crossOrigin = "anonymous";
+      video.style.width = "100%";
+      video.style.height = "100%";
+      video.style.objectFit = "contain";
 
-      playerBody.append(videoElement);
+      const source = document.createElement("source");
+      source.src = videoUrl;
+      source.type = "video/mp4";
+      video.append(source);
+
+      playerBody.append(video);
       modal.classList.add("open");
+
+      // Force play call after DOM insertion
+      video.play().catch(e => console.log("Autoplay caught:", e));
     }
 
     function closeInAppVideo() {
