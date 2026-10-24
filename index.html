@@ -285,7 +285,15 @@
 
         const badge = document.createElement("span");
         badge.className = "thumb-badge";
-        badge.textContent = video.isManual ? "VIP PRIVATE" : "FEATURED";
+        
+        // Check if the user has VIP access (stored in localStorage or Telegram WebApp state)
+        const isUserVip = localStorage.getItem("is_vip") === "true";
+        
+        if (video.isManual) {
+          badge.textContent = isUserVip ? "VIP PRIVATE" : "FEATURED";
+        } else {
+          badge.textContent = "FEATURED";
+        }
 
         const play = document.createElement("span");
         play.className = "play-indicator";
