@@ -6,14 +6,14 @@ const path = require('path');
 const app = express();
 app.use(express.json());
 
-// Enable CORS so your frontend can communicate with backend endpoints smoothly
+// Enable CORS for frontend requests
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
   next();
 });
 
-// Serve static files (index.html, etc.)
+// Serve static frontend files
 app.use(express.static(__dirname));
 
 const MONGO_URI = process.env.MONGODB_URI;
@@ -28,7 +28,7 @@ MongoClient.connect(MONGO_URI)
   .catch(error => console.error('❌ MongoDB Connection Error:', error));
 
 // -------------------------------------------------------------
-// 1. TELEGRAM WEBHOOK (Handles New Posts & Delete Commands)
+// 1. TELEGRAM WEBHOOK (Saves new channel posts & handles /delete)
 // -------------------------------------------------------------
 app.post('/telegram-webhook', async (req, res) => {
   const update = req.body;
@@ -41,7 +41,7 @@ app.post('/telegram-webhook', async (req, res) => {
         file_id: update.channel_post.video.file_id,
         title: update.channel_post.caption || 'VIP Private Video',
         thumbnail: '',
-        url: `https://t.me/your_channel/${update.channel_post.message_id}`,
+        destination: `https://t.me/PrivateVIPVault/${update.channel_post.message_id}`,
         isManual: true,
         source: 'Telegram Private Vault',
         date: update.channel_post.date || Date.now()
@@ -53,34 +53,33 @@ app.post('/telegram-webhook', async (req, res) => {
           { $set: videoData },
           { upsert: true }
         );
-        console.log(`📹 Saved video message #${videoData.message_id} to Database`);
+        console.log(`📹 Saved video message #${videoData.message_id} to database`);
       }
     }
 
-    // Detect delete command sent to bot (e.g. "/delete 145")
+    // Detect delete command (e.g. "/delete 145")
     if (update.message && update.message.text && update.message.text.startsWith('/delete')) {
       const parts = update.message.text.split(' ');
       const messageIdToDelete = parseInt(parts[1]);
 
       if (messageIdToDelete && db) {
         await db.collection('videos').deleteOne({ message_id: messageIdToDelete });
-        console.log(`🗑️ Deleted video message #${messageIdToDelete} from Database via command`);
+        console.log(`🗑️ Deleted video message #${messageIdToDelete} from database`);
       }
     }
   } catch (error) {
-    console.error('Error handling webhook update:', error);
+    console.error('Webhook error:', error);
   }
 
   res.sendStatus(200);
 });
 
 // -------------------------------------------------------------
-// 2. FETCH TELEGRAM PRIVATE VIDEOS (Mapped to /api/telegram-videos)
+// 2. FETCH TELEGRAM PRIVATE VIDEOS
 // -------------------------------------------------------------
 app.get('/api/telegram-videos', async (req, res) => {
   try {
     if (!db) return res.json({ success: true, videos: [] });
-    
     const videos = await db.collection('videos').find({}).sort({ date: -1 }).toArray();
     res.json({ success: true, videos });
   } catch (error) {
@@ -89,13 +88,13 @@ app.get('/api/telegram-videos', async (req, res) => {
   }
 });
 
-// Alias route to keep backward compatibility
+// Compatibility alias
 app.get('/api/get-videos', (req, res) => {
   res.redirect('/api/telegram-videos');
 });
 
 // -------------------------------------------------------------
-// 3. EPORNER CATALOG INTEGRATION (Mapped to /api/videos)
+// 3. EPORNER CATALOG INTEGRATION (With secure thumbnails)
 // -------------------------------------------------------------
 app.get('/api/videos', async (req, res) => {
   try {
@@ -123,7 +122,7 @@ app.get('/api/videos', async (req, res) => {
   }
 });
 
-// Alias route to keep backward compatibility
+// Compatibility alias
 app.get('/api/eporner-videos', (req, res) => {
   res.redirect('/api/videos');
 });
@@ -133,7 +132,6 @@ app.get('/api/eporner-videos', (req, res) => {
 // -------------------------------------------------------------
 app.get('/api/create-invoice', async (req, res) => {
   try {
-    // Place invoice generation logic here when ready
     res.json({ success: false, message: 'Invoice system initialized' });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Invoice creation failed' });
