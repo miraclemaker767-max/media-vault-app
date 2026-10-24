@@ -6,7 +6,6 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Serve static files (index.html)
 app.use(express.static(__dirname));
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
@@ -17,7 +16,7 @@ let telegramVault = [];
 // --- HEALTH CHECK ---
 app.get("/health", (_req, res) => res.status(200).send("OK"));
 
-// --- 1. TELEGRAM WEBHOOK (Receives video posts automatically) ---
+// --- 1. TELEGRAM WEBHOOK ---
 app.post("/telegram-webhook", async (req, res) => {
   const update = req.body;
   console.log("📥 Incoming Telegram Webhook:", JSON.stringify(update));
@@ -25,15 +24,24 @@ app.post("/telegram-webhook", async (req, res) => {
   try {
     const post = update.channel_post || update.message;
 
+    // Handle delete command (e.g. send "/delete 1234" to your bot or channel)
+    if (post && post.text && post.text.startsWith("/delete")) {
+      const parts = post.text.split(" ");
+      const targetId = parts[1];
+      if (targetId) {
+        telegramVault = telegramVault.filter(v => !v.targetUrl.includes(targetId) && v.id !== targetId);
+        console.log(`🗑️ Deleted video message #${targetId} from vault.`);
+      }
+      return res.sendStatus(200);
+    }
+
     if (post && (post.video || post.document)) {
       const media = post.video || post.document;
       const fileId = media.file_id;
 
-      // Extract raw channel ID (removes -100 for t.me/c/ deep link format)
       const rawChatId = String(post.chat.id).replace("-100", "");
       const privateLink = `https://t.me/c/${rawChatId}/${post.message_id}`;
 
-      // Get direct streamable video URL from Telegram
       let directVideoUrl = privateLink;
       if (BOT_TOKEN) {
         try {
@@ -47,8 +55,8 @@ app.post("/telegram-webhook", async (req, res) => {
         }
       }
 
-      // Extract thumbnail if present
-      let thumbnailUrl = "";
+      // Fallback default VIP thumbnail if Telegram didn't generate one
+      let thumbnailUrl = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=500&auto=format&fit=crop";
       if (BOT_TOKEN && (media.thumbnail || media.thumb)) {
         try {
           const thumbObj = media.thumbnail || media.thumb;
@@ -62,6 +70,7 @@ app.post("/telegram-webhook", async (req, res) => {
 
       const videoItem = {
         id: String(fileId),
+        message_id: post.message_id,
         title: post.caption || "VIP Private Video",
         thumbnail: thumbnailUrl,
         watchUrl: directVideoUrl,
@@ -70,7 +79,6 @@ app.post("/telegram-webhook", async (req, res) => {
         source: "Telegram Private Vault"
       };
 
-      // Add to front of list (avoid duplicates)
       telegramVault = telegramVault.filter(v => v.id !== videoItem.id);
       telegramVault.unshift(videoItem);
 
@@ -85,34 +93,10 @@ app.post("/telegram-webhook", async (req, res) => {
 
 // --- 2. GET TELEGRAM VIDEOS ENDPOINT ---
 app.get("/api/telegram-videos", (_req, res) => {
-  res.json({ videos: telegramVault });
+  res.json(telegramVault);
 });
 
-// --- 3. EPORNER CATALOG ENDPOINT ---
-app.get("/api/videos", async (_req, res) => {
-  try {
-    const response = await fetch("https://www.eporner.com/api/v2/video/search/?query=hd&per_page=30&format=json");
-    const data = await response.json();
-
-    const items = Array.isArray(data.videos) ? data.videos : [];
-    const normalizedVideos = items.map(v => ({
-      id: String(v.id || v.url),
-      title: v.title || "Featured Video",
-      thumbnail: v.default_thumb?.src || v.embed_url || "",
-      watchUrl: v.url,
-      targetUrl: v.url,
-      isManual: false,
-      source: "Eporner"
-    }));
-
-    res.json({ videos: normalizedVideos });
-  } catch (err) {
-    console.error("Catalog fetch error:", err);
-    res.json({ videos: [] });
-  }
-});
-
-// --- 4. TELEGRAM STARS PAYMENT ---
+// --- 3. TELEGRAM STARS PAYMENT ---
 app.get("/api/create-invoice", async (_req, res) => {
   try {
     if (!BOT_TOKEN) return res.status(400).json({ error: "Bot token not configured" });
