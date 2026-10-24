@@ -6,7 +6,6 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Serve static files (index.html)
 app.use(express.static(__dirname));
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
@@ -17,7 +16,7 @@ let telegramVault = [];
 // --- HEALTH CHECK ---
 app.get("/health", (_req, res) => res.status(200).send("OK"));
 
-// --- 1. TELEGRAM WEBHOOK (Receives video posts automatically) ---
+// --- 1. TELEGRAM WEBHOOK ---
 app.post("/telegram-webhook", async (req, res) => {
   const update = req.body;
   console.log("📥 Incoming Telegram Webhook:", JSON.stringify(update));
@@ -29,11 +28,9 @@ app.post("/telegram-webhook", async (req, res) => {
       const media = post.video || post.document;
       const fileId = media.file_id;
 
-      // Extract raw channel ID (removes -100 for t.me/c/ deep link format)
       const rawChatId = String(post.chat.id).replace("-100", "");
       const privateLink = `https://t.me/c/${rawChatId}/${post.message_id}`;
 
-      // Get direct streamable video URL from Telegram
       let directVideoUrl = privateLink;
       if (BOT_TOKEN) {
         try {
@@ -47,7 +44,6 @@ app.post("/telegram-webhook", async (req, res) => {
         }
       }
 
-      // Extract thumbnail if present
       let thumbnailUrl = "";
       if (BOT_TOKEN && (media.thumbnail || media.thumb)) {
         try {
@@ -70,7 +66,6 @@ app.post("/telegram-webhook", async (req, res) => {
         source: "Telegram Private Vault"
       };
 
-      // Add to front of list (avoid duplicates)
       telegramVault = telegramVault.filter(v => v.id !== videoItem.id);
       telegramVault.unshift(videoItem);
 
@@ -83,13 +78,12 @@ app.post("/telegram-webhook", async (req, res) => {
   res.sendStatus(200);
 });
 
-// --- 2. GET TELEGRAM VIDEOS ENDPOINT ---
+// --- 2. GET TELEGRAM VIDEOS ENDPOINT (Returns direct array) ---
 app.get("/api/telegram-videos", (_req, res) => {
-  res.json({ videos: telegramVault });
+  res.json(telegramVault);
 });
 
-// --- 3. EPORNER CATALOG ENDPOINT ---
-// --- 3. EPORNER CATALOG ENDPOINT (Returns direct array format) ---
+// --- 3. EPORNER CATALOG ENDPOINT (Returns direct array) ---
 app.get("/api/videos", async (_req, res) => {
   try {
     const response = await fetch("https://www.eporner.com/api/v2/video/search/?query=hd&per_page=30&format=json");
@@ -112,7 +106,6 @@ app.get("/api/videos", async (_req, res) => {
       };
     });
 
-    // Return direct array so index.html processes it instantly
     res.json(normalizedVideos);
   } catch (err) {
     console.error("Catalog fetch error:", err);
